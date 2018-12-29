@@ -1,11 +1,10 @@
 package com.wusatosi.recaptcha.internal
 
-import com.github.kittinunf.fuel.core.Deserializable
-import com.github.kittinunf.fuel.core.Response
-import com.google.gson.*
-import com.wusatosi.recaptcha.UnexpectedError
+import com.google.gson.JsonArray
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
 import com.wusatosi.recaptcha.UnexpectedJsonStructure
-import java.math.BigDecimal
 
 internal fun JsonElement?.expectArray(attributeName: String): JsonArray {
     this.expectNonNull(attributeName)
@@ -36,7 +35,7 @@ internal fun JsonElement?.expectObject(attributeName: String): JsonObject {
 
 internal fun JsonElement?.expectString(attributeName: String): String {
     this.expectNonNull(attributeName)
-    if (!this.expectPrimitive(attributeName).isBoolean)
+    if (!this.expectPrimitive(attributeName).isString)
         throw UnexpectedJsonStructure(
             "$attributeName attribute is not an string"
         )
@@ -58,7 +57,6 @@ internal fun JsonPrimitive.expectNumber(attributeName: String): JsonPrimitive {
         )
     return this
 }
-
 
 private fun JsonElement?.expectNonNull(attributeName: String) {
     this ?: throw UnexpectedJsonStructure(

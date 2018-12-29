@@ -67,6 +67,9 @@ constructor(
      * get the score from recaptcha remote, if your site key is correct, expect only IOException
      *
      * @param token the client's response token
+     * @return The score
+     * (if timeout-or-duplicate, return -2.0,
+     * if invalid-input-response, return -1.0)
      * @throws IOException self explanatory
      * @throws RecaptchaError if the server responded an invalid json structure
      * @throws InvalidSiteKeyException if server responded with error code: invalid-input-secret
@@ -76,7 +79,7 @@ constructor(
 //        There is no way to validate it here,
 //        So check if it only contains characters
 //        that is valid for a URL string
-        if (pattern.matcher(token).matches()) return -1.0
+        if (!pattern.matcher(token).matches()) return INVALIDATE_TOKEN_SCORE
 
         val obj = getJsonObj(token)
 
@@ -94,6 +97,7 @@ constructor(
 //                missing-input-response	The response parameter is missing.
 //                invalid-input-response	The response parameter is invalid or malformed.
 //                bad-request	            The request is invalid or malformed.
+//                timeout-or-duplicate      Timeout... (didn't include in the v3 documentation)
                 when {
                     string.startsWith("missing-") || string == "bad-request" ->
                         throw UnexpectedError("assertion failed, should not report $string", null)
@@ -102,7 +106,10 @@ constructor(
                         throw InvalidSiteKeyException()
 
                     string == "invalid-input-response" ->
-                        return -1.0
+                        return INVALIDATE_TOKEN_SCORE
+
+                    string == "timeout-or-duplicate" ->
+                        return TIMEOUT_OR_DUPLICATE_SCORE
 
                     else ->
                         UnexpectedJsonStructure("unexpected error code: $string")
@@ -120,23 +127,35 @@ constructor(
     companion object {
         /**
          * If you don't know, recaptcha have an end point at www.recaptcha.net,
-         * for countries which blocks google.com <br><br>
+         * for countries which blocks www.google.com <br><br>
          *
          * Enable this feature will change the verification endpoint from<br>
-         *  https://www.google.com/recaptcha/api/siteverify?...<br>
+         *  https://www.google.com/recaptcha/api/siteverify?...<br> to <br>
          *  https://www.recaptcha.net/recaptcha/api/siteverify?...<br>
          *
          * Notice:<br>
          *     Change this variable will not update all the instance, this only
-         *     apply to instances created after this change
+         *     apply to instances created after the change
          *
          * @see <a href="https://developers.google.com/recaptcha/docs/faq">
          *     https://developers.google.com/recaptcha/docs/faq
          *     </a>
          */
+        @set:Synchronized
         var useRecaptchaDotNetEndPoint = false
-            @Synchronized
-            set
+
+        /**
+         * Default value when remote returns "invalid-input-response", or token contains characters that
+         * is not suitable in an URL string
+         */
+        @set:Synchronized
+        var INVALIDATE_TOKEN_SCORE = -1.0
+
+        /**
+         * Default value when remote returns "timeout-or-duplicate"
+         */
+        @set:Synchronized
+        var TIMEOUT_OR_DUPLICATE_SCORE = -2.0
     }
 
 }
