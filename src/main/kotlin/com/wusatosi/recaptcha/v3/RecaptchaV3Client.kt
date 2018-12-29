@@ -1,8 +1,6 @@
 package com.wusatosi.recaptcha.v3
 
 import com.wusatosi.recaptcha.InvalidSiteKeyException
-import com.wusatosi.recaptcha.RecaptchaConfig.DEFAULT_INVALIDATE_TOKEN_SCORE
-import com.wusatosi.recaptcha.RecaptchaConfig.DEFAULT_TIMEOUT_OR_DUPLICATE_SCORE
 import com.wusatosi.recaptcha.RecaptchaError
 import com.wusatosi.recaptcha.internal.*
 import java.io.IOException
@@ -34,10 +32,10 @@ constructor(
     useRecaptchaDotNetEndPoint: Boolean = false,
 
     @set:Synchronized
-    var invalidate_token_score: Double = DEFAULT_INVALIDATE_TOKEN_SCORE,
+    var invalidate_token_score: Double = -1.0,
 
     @set:Synchronized
-    var timeout_or_duplicate_score: Double = DEFAULT_TIMEOUT_OR_DUPLICATE_SCORE
+    var timeout_or_duplicate_score: Double = -2.0
 ) {
 
     private val pattern = Pattern.compile("^[-a-zA-Z0-9+&@#/%?=~_!:,.;]*[-a-zA-Z0-9+&@#/%=~_]")
@@ -66,7 +64,7 @@ constructor(
 //        There is no way to validate it here,
 //        So check if it only contains characters
 //        that is valid for a URL string
-        if (!pattern.matcher(token).matches()) return DEFAULT_INVALIDATE_TOKEN_SCORE
+        if (!pattern.matcher(token).matches()) return invalidate_token_score
 
         val obj = getJsonObj(validateURL, token)
 
