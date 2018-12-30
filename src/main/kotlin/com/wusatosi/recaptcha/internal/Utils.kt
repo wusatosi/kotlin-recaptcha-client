@@ -7,8 +7,12 @@ import com.github.kittinunf.fuel.core.awaitResponse
 import com.github.kittinunf.result.Result
 import com.google.gson.*
 import com.wusatosi.recaptcha.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.regex.Pattern
+
+internal const val issue_address = "https://github.com/wusatosi/kotlin-recaptcha-client/issues/new"
 
 /**
  * get the json response object from recaptcha remote, if your site key is correct, expect only IOException
@@ -20,9 +24,13 @@ import java.util.regex.Pattern
  */
 @Throws(IOException::class)
 internal suspend fun getJsonObj(baseURL: String, token: String): JsonObject {
-    val (_, _, result) = Fuel
-        .post(baseURL + token)
-        .awaitResponse(JsonResponseDeserializer)
+//    Fuel 1.16.0 will not do request within IO dispatcher, it blocks the process... (fixed in current development)
+    val (_, _, result) = withContext(Dispatchers.IO) {
+        Fuel
+            .post(baseURL + token)
+            .awaitResponse(JsonResponseDeserializer)
+    }
+
     if (result is Result.Failure) {
         val cause = result.error.cause
         when (cause) {
@@ -47,10 +55,11 @@ private val pattern = Pattern.compile("^[-a-zA-Z0-9+&@#/%?=~_!:,.;]*[-a-zA-Z0-9+
 
 internal fun checkURLCompatibility(target: String): Boolean = pattern.matcher(target).matches()
 
-internal const val INVALID_INPUT_RESPONSE: Int = 0
-internal const val TIMEOUT_OR_DUPLICATE: Int = 1
-
-internal fun processErrorCodes(errorCodes: JsonArray): Int {
+internal fun checkErrorCodes(
+    errorCodes: JsonArray,
+    invalidate_token_score: Double = 0.0,
+    timeout_or_duplicate_score: Double = 0.0
+): Double {
     for (errorCode in errorCodes) {
         val string = errorCode.expectString("error-codes")
 //                Error code	            Description
@@ -68,10 +77,10 @@ internal fun processErrorCodes(errorCodes: JsonArray): Int {
                 throw InvalidSiteKeyException()
 
             string == "invalid-input-response" ->
-                return INVALID_INPUT_RESPONSE
+                return invalidate_token_score
 
             string == "timeout-or-duplicate" ->
-                return TIMEOUT_OR_DUPLICATE
+                return timeout_or_duplicate_score
 
             else ->
                 UnexpectedJsonStructure("unexpected error code: $string")
@@ -138,7 +147,7 @@ private fun JsonElement?.expectNonNull(attributeName: String) {
     )
 }
 
-internal object JsonResponseDeserializer : Deserializable<JsonElement> {
+private object JsonResponseDeserializer : Deserializable<JsonElement> {
     override fun deserialize(response: Response): JsonElement {
         val statusCode = response.statusCode
         if (statusCode !in 200..299)

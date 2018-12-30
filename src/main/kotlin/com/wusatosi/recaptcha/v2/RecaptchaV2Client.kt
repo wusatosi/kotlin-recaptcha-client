@@ -65,7 +65,7 @@ constructor(
 
         if (!isSuccess)
             obj["error-codes"]?.let {
-                processErrorCodes(it.expectArray("error-codes"))
+                checkErrorCodes(it.expectArray("error-codes"))
             }
 
         return isSuccess

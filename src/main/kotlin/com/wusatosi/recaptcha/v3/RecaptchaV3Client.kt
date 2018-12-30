@@ -4,7 +4,6 @@ import com.wusatosi.recaptcha.InvalidSiteKeyException
 import com.wusatosi.recaptcha.RecaptchaError
 import com.wusatosi.recaptcha.internal.*
 import java.io.IOException
-import java.util.regex.Pattern
 
 class RecaptchaV3Client
 /**
@@ -24,24 +23,14 @@ class RecaptchaV3Client
  *  info about www.recaptcha.net
  *  </a>
  *
- *  @param invalidate_token_score default score for invalidate-token in this instance
- *  @param timeout_or_duplicate_score default score for timeout_or_duplicate_score in this instance
  */
 constructor(
     secretKey: String,
-    useRecaptchaDotNetEndPoint: Boolean = false,
-
-    @set:Synchronized
-    var invalidate_token_score: Double = -1.0,
-
-    @set:Synchronized
-    var timeout_or_duplicate_score: Double = -2.0
+    useRecaptchaDotNetEndPoint: Boolean = false
 ) {
 
-    private val pattern = Pattern.compile("^[-a-zA-Z0-9+&@#/%?=~_!:,.;]*[-a-zA-Z0-9+&@#/%=~_]")
-
     init {
-        if (!pattern.matcher(secretKey).matches()) throw InvalidSiteKeyException()
+        if (!checkURLCompatibility(secretKey)) throw InvalidSiteKeyException()
     }
 
     private val validateURL = "https://" +
@@ -52,6 +41,8 @@ constructor(
      * get the score from recaptcha remote, if your site key is correct, expect only IOException
      *
      * @param token the client's response token
+     * @param invalidate_token_score default score for invalidate-token in this instance
+     * @param timeout_or_duplicate_score default score for timeout_or_duplicate_score in this instance
      * @return The score
      * (if timeout-or-duplicate, return -2.0,
      * if invalid-input-response, return -1.0)
@@ -60,11 +51,15 @@ constructor(
      * @throws InvalidSiteKeyException if server responded with error code: invalid-input-secret
      */
     @Throws(IOException::class)
-    suspend fun getVerifyScore(token: String): Double {
+    suspend fun getVerifyScore(
+        token: String,
+        invalidate_token_score: Double = -1.0,
+        timeout_or_duplicate_score: Double = -2.0
+    ): Double {
 //        There is no way to validate it here,
 //        So check if it only contains characters
 //        that is valid for a URL string
-        if (!pattern.matcher(token).matches()) return invalidate_token_score
+        if (!checkURLCompatibility(token)) return invalidate_token_score
 
         val obj = getJsonObj(validateURL, token)
 
@@ -74,12 +69,7 @@ constructor(
 
         if (!isSuccess) {
             val errorCodes = obj["error-codes"].expectArray("error-codes")
-            val result = processErrorCodes(errorCodes)
-            return when (result) {
-                INVALID_INPUT_RESPONSE -> invalidate_token_score
-                TIMEOUT_OR_DUPLICATE -> timeout_or_duplicate_score
-                else -> throw AssertionError("Not gonna happen")
-            }
+            return checkErrorCodes(errorCodes, invalidate_token_score, timeout_or_duplicate_score)
         } else {
             return obj["score"]
                 .expectPrimitive("score")
