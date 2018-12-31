@@ -24,7 +24,7 @@ internal const val issue_address = "https://github.com/wusatosi/kotlin-recaptcha
  */
 @Throws(IOException::class)
 internal suspend fun getJsonObj(baseURL: String, token: String): JsonObject {
-//    Fuel 1.16.0 will not do request within IO dispatcher, it blocks the process... (fixed in current development)
+//    Fuel 1.16.0 will not do request within IO dispatcher, it blocks the process... (fixed in current master branch)
     val (_, _, result) = withContext(Dispatchers.IO) {
         Fuel
             .post(baseURL + token)

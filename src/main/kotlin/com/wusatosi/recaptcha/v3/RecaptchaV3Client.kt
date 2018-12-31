@@ -67,11 +67,11 @@ constructor(
             .expectPrimitive("success")
             .expectBoolean("success")
 
-        if (!isSuccess) {
+        return if (!isSuccess) {
             val errorCodes = obj["error-codes"].expectArray("error-codes")
-            return checkErrorCodes(errorCodes, invalidate_token_score, timeout_or_duplicate_score)
+            checkErrorCodes(errorCodes, invalidate_token_score, timeout_or_duplicate_score)
         } else {
-            return obj["score"]
+            obj["score"]
                 .expectPrimitive("score")
                 .expectNumber("score")
                 .asDouble
