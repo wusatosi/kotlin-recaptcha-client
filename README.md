@@ -28,7 +28,7 @@ runBlocking {
   // RecaptchaV2Client.verify is an suspend function
   val result: Boolean = v2Client.verify(token)
   
-  ...
+  // ...
 }
 ```
 
@@ -42,7 +42,7 @@ runBlocking {
   // RecaptchaV3Client.getVerifyScore is an suspend function
   val result: Double = v3Client.getVerifyScore(token)
   
-  ...
+  // ...
 }
 ```
 

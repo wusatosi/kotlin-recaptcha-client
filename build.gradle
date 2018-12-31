@@ -2,7 +2,7 @@ plugins {
     id 'org.jetbrains.kotlin.jvm' version '1.3.11'
 }
 
-group 'com.wusatosi.recaptcha.v3'
+group 'com.wusatosi.recaptcha'
 version '1.0.1'
 
 repositories {
