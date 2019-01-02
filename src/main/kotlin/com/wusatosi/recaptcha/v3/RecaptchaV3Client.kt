@@ -1,6 +1,7 @@
 package com.wusatosi.recaptcha.v3
 
 import com.wusatosi.recaptcha.InvalidSiteKeyException
+import com.wusatosi.recaptcha.RecaptchaClient
 import com.wusatosi.recaptcha.RecaptchaError
 import com.wusatosi.recaptcha.internal.*
 import java.io.IOException
@@ -26,9 +27,9 @@ class RecaptchaV3Client
  */
 constructor(
     secretKey: String,
+    private val defaultScoreThreshold: Double = 0.5,
     useRecaptchaDotNetEndPoint: Boolean = false
-) {
-
+): RecaptchaClient {
     init {
         if (!checkURLCompatibility(secretKey)) throw InvalidSiteKeyException()
     }
@@ -77,5 +78,7 @@ constructor(
                 .asDouble
         }
     }
+
+    override suspend fun verify(token: String): Boolean = getVerifyScore(token) > defaultScoreThreshold
 
 }

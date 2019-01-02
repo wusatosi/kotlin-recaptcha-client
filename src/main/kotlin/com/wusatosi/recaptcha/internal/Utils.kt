@@ -6,7 +6,10 @@ import com.github.kittinunf.fuel.core.Response
 import com.github.kittinunf.fuel.core.awaitResponse
 import com.github.kittinunf.result.Result
 import com.google.gson.*
-import com.wusatosi.recaptcha.*
+import com.wusatosi.recaptcha.InvalidSiteKeyException
+import com.wusatosi.recaptcha.UnableToDeserializeError
+import com.wusatosi.recaptcha.UnexpectedError
+import com.wusatosi.recaptcha.UnexpectedJsonStructure
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
