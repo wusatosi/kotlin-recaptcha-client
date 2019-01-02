@@ -7,7 +7,7 @@ This client aims to be as simple as possible
 "reCAPTCHA is a free CAPTCHA service that protects websites from spam and abuse."
 
 - reCAPTCHA: https://www.google.com/recaptcha
-- Version: 1.0.1
+- Version: 1.0.2
 - License: MIT, see [LICENSE](LICENSE)
 
 ## Installation
