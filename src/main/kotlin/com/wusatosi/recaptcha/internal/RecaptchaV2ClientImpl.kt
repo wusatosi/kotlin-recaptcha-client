@@ -1,18 +1,20 @@
 package com.wusatosi.recaptcha.internal
 
-import com.wusatosi.recaptcha.RecaptchaClient
+import com.wusatosi.recaptcha.v2.RecaptchaV2Client
 
-internal class UniversalRecaptchaClientImpl(
+internal class RecaptchaV2ClientImpl(
     secretKey: String,
-    private val defaultScoreThreshold: Double = 0.5,
     useRecaptchaDotNetEndPoint: Boolean = false
-) : RecaptchaClient {
+) : RecaptchaV2Client {
 
     private val validateURL = "https://" +
             (if (useRecaptchaDotNetEndPoint) "www.recaptcha.net" else "www.google.com") +
             "/recaptcha/api/siteverify?secret=$secretKey&response="
 
     override suspend fun verify(token: String): Boolean {
+//        There is no way to validate it here,
+//        So check if it only contains characters
+//        that is valid for a URL string
         if (!checkURLCompatibility(token))
             return false
 
@@ -22,21 +24,12 @@ internal class UniversalRecaptchaClientImpl(
             .expectPrimitive("success")
             .expectBoolean("success")
 
-        if (!isSuccess) {
+        if (!isSuccess)
             obj["error-codes"]?.let {
                 checkErrorCodes(it.expectArray("error-codes"))
             }
-            return false
-        }
 
-        val scoreIndicate = obj["score"] ?: return isSuccess
-
-        val score = scoreIndicate
-            .expectPrimitive("score")
-            .expectNumber("score")
-            .asDouble
-
-        return score > defaultScoreThreshold
+        return isSuccess
     }
 
 }

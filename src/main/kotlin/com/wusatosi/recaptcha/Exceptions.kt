@@ -3,8 +3,9 @@ package com.wusatosi.recaptcha
 import com.github.kittinunf.fuel.core.Response
 import com.google.gson.JsonParseException
 import com.wusatosi.recaptcha.internal.issue_address
+import java.io.IOException
 
-class InvalidSiteKeyException: RecaptchaError("site key is invalid", null)
+object InvalidSiteKeyException : RecaptchaError("site key is invalid", null)
 
 sealed class RecaptchaError(
     message: String,
@@ -34,3 +35,6 @@ class UnexpectedJsonStructure internal constructor(
             "check if the latest version is imported, if so, please submit an issue to $issue_address",
     null
 )
+
+class RecaptchaIOError internal constructor(cause: IOException) :
+    RecaptchaError("IO, ${cause.javaClass}: ${cause.message}", cause)

@@ -6,10 +6,7 @@ import com.github.kittinunf.fuel.core.Response
 import com.github.kittinunf.fuel.core.awaitResponse
 import com.github.kittinunf.result.Result
 import com.google.gson.*
-import com.wusatosi.recaptcha.InvalidSiteKeyException
-import com.wusatosi.recaptcha.UnableToDeserializeError
-import com.wusatosi.recaptcha.UnexpectedError
-import com.wusatosi.recaptcha.UnexpectedJsonStructure
+import com.wusatosi.recaptcha.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -17,15 +14,6 @@ import java.util.regex.Pattern
 
 internal const val issue_address = "https://github.com/wusatosi/kotlin-recaptcha-client/issues/new"
 
-/**
- * get the json response object from recaptcha remote, if your site key is correct, expect only IOException
- *
- * @param token the client's response token
- * @throws IOException self explanatory
- * @throws RecaptchaError if the server responded an invalid json structure
- * @throws InvalidSiteKeyException if server responded with error code: invalid-input-secret
- */
-@Throws(IOException::class)
 internal suspend fun getJsonObj(baseURL: String, token: String): JsonObject {
 //    Fuel 1.16.0 will not do request within IO dispatcher, it blocks the process... (fixed in current master branch)
     val (_, _, result) = withContext(Dispatchers.IO) {
@@ -38,7 +26,7 @@ internal suspend fun getJsonObj(baseURL: String, token: String): JsonObject {
         val cause = result.error.cause
         when (cause) {
             is JsonParseException -> throw UnableToDeserializeError(cause, result.error.response)
-            is IOException -> throw cause
+            is IOException -> throw RecaptchaIOError(cause)
             else ->
                 throw UnexpectedError(
                     "Unexpected error occurred when requesting verification ${cause ?: ""}",
@@ -49,13 +37,12 @@ internal suspend fun getJsonObj(baseURL: String, token: String): JsonObject {
 
     val res = result.get()
     if (!res.isJsonObject)
-        throw UnexpectedJsonStructure("respond json isn't an object")
+        throw UnexpectedJsonStructure("response json isn't an object")
 
     return res.asJsonObject
 }
 
 private val pattern = Pattern.compile("^[-a-zA-Z0-9+&@#/%?=~_!:,.;]*[-a-zA-Z0-9+&@#/%=~_]")
-
 internal fun checkURLCompatibility(target: String): Boolean = pattern.matcher(target).matches()
 
 internal fun checkErrorCodes(
@@ -77,7 +64,7 @@ internal fun checkErrorCodes(
                 throw UnexpectedError("assertion failed, should not report $string", null)
 
             string == "invalid-input-secret" ->
-                throw InvalidSiteKeyException()
+                throw InvalidSiteKeyException
 
             string == "invalid-input-response" ->
                 return invalidate_token_score
