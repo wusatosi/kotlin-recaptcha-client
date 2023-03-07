@@ -13,8 +13,7 @@ sealed class RecaptchaError(
 ) : Error(message, cause)
 
 class UnableToDeserializeError internal constructor(
-    cause: JsonParseException,
-    val response: Response
+    cause: JsonParseException
 ) : RecaptchaError(
     "The server did not respond with a valid Json object",
     cause

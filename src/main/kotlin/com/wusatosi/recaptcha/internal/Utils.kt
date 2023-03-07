@@ -22,10 +22,10 @@ internal suspend fun getJsonObj(baseURL: String, token: String): JsonObject {
             .awaitResponse(JsonResponseDeserializer)
     }
 
-    if (result is Result.Failure) {
+    if (result is Result.Failure<*>) {
         val cause = result.error.cause
         when (cause) {
-            is JsonParseException -> throw UnableToDeserializeError(cause, result.error.response)
+            is JsonParseException -> throw UnableToDeserializeError(cause)
             is IOException -> throw RecaptchaIOError(cause)
             else ->
                 throw UnexpectedError(
@@ -35,7 +35,7 @@ internal suspend fun getJsonObj(baseURL: String, token: String): JsonObject {
         }
     }
 
-    val res = result.get()
+    val res = result.asJsonObject
     if (!res.isJsonObject)
         throw UnexpectedJsonStructure("response json isn't an object")
 
