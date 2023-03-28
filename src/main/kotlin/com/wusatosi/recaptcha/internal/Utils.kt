@@ -16,7 +16,6 @@ internal fun checkErrorCodes(
     timeout_or_duplicate_score: Double = 0.0
 ): Double {
     for (errorCode in errorCodes) {
-        val string = errorCode.expectString("error-codes")
 //                Error code	            Description
 //                missing-input-secret	    The secret parameter is missing.
 //                invalid-input-secret	    The secret parameter is invalid or malformed.
@@ -24,13 +23,16 @@ internal fun checkErrorCodes(
 //                invalid-input-response	The response parameter is invalid or malformed.
 //                bad-request	            The request is invalid or malformed.
 //                timeout-or-duplicate      Timeout... (didn't include in the v3 documentation)
-        when (string) {
+        when (val string = errorCode.expectString("error-codes")) {
             "invalid-input-secret" ->
                 throw InvalidSiteKeyException
+
             "invalid-input-response" ->
                 return invalidate_token_score
+
             "timeout-or-duplicate" ->
                 return timeout_or_duplicate_score
+
             else -> UnexpectedJsonStructure("unexpected error code: $string")
         }
     }
@@ -38,8 +40,8 @@ internal fun checkErrorCodes(
 }
 
 internal fun JsonElement?.expectArray(attributeName: String): JsonArray {
-    this.expectNonNull(attributeName)
-    if (!this!!.isJsonArray)
+    this ?: throwNull(attributeName)
+    if (!this.isJsonArray)
         throw UnexpectedJsonStructure(
             "$attributeName attribute is not an array"
         )
@@ -47,8 +49,8 @@ internal fun JsonElement?.expectArray(attributeName: String): JsonArray {
 }
 
 internal fun JsonElement?.expectPrimitive(attributeName: String): JsonPrimitive {
-    this.expectNonNull(attributeName)
-    if (!this!!.isJsonPrimitive)
+    this ?: throwNull(attributeName)
+    if (!this.isJsonPrimitive)
         throw UnexpectedJsonStructure(
             "$attributeName attribute is not a boolean"
         )
@@ -56,12 +58,12 @@ internal fun JsonElement?.expectPrimitive(attributeName: String): JsonPrimitive 
 }
 
 internal fun JsonElement?.expectString(attributeName: String): String {
-    this.expectNonNull(attributeName)
+    this ?: throwNull(attributeName)
     if (!this.expectPrimitive(attributeName).isString)
         throw UnexpectedJsonStructure(
             "$attributeName attribute is not an string"
         )
-    return this!!.asString
+    return this.asString
 }
 
 internal fun JsonPrimitive.expectBoolean(attributeName: String): Boolean {
@@ -88,8 +90,8 @@ internal fun JsonElement.expectNumber(attributeName: String) = this
     .expectPrimitive(attributeName)
     .expectNumber(attributeName)
 
-private fun JsonElement?.expectNonNull(attributeName: String) {
-    this ?: throw UnexpectedJsonStructure(
+private fun throwNull(attributeName: String): Nothing {
+    throw UnexpectedJsonStructure(
         "$attributeName do not exists"
     )
 }

@@ -19,7 +19,6 @@ internal class RecaptchaV2ClientImpl(
         val obj = transact(token)
 
         val isSuccess = obj["success"]
-            .expectPrimitive("success")
             .expectBoolean("success")
 
         if (!isSuccess)

@@ -23,7 +23,6 @@ internal class RecaptchaV3ClientImpl(
         val obj = transact(token)
 
         val isSuccess = obj["success"]
-            .expectPrimitive("success")
             .expectBoolean("success")
 
         return if (!isSuccess) {
@@ -31,7 +30,6 @@ internal class RecaptchaV3ClientImpl(
             checkErrorCodes(errorCodes, invalidate_token_score, timeout_or_duplicate_score)
         } else {
             obj["score"]
-                .expectPrimitive("score")
                 .expectNumber("score")
                 .asDouble
         }
