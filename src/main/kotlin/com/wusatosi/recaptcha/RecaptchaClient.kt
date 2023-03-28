@@ -2,8 +2,6 @@ package com.wusatosi.recaptcha
 
 import com.wusatosi.recaptcha.internal.UniversalRecaptchaClientImpl
 import com.wusatosi.recaptcha.internal.checkURLCompatibility
-import com.wusatosi.recaptcha.v2.RecaptchaV2Client
-import com.wusatosi.recaptcha.v3.RecaptchaV3Client
 import io.ktor.client.*
 import io.ktor.client.engine.*
 import io.ktor.client.engine.cio.*
@@ -32,20 +30,6 @@ interface RecaptchaClient : Closeable {
                 engine
             )
         }
-
-        fun createV2(
-            siteKey: String,
-            useRecaptchaDotNetEndpoint: Boolean = false,
-            engine: HttpClientEngine = CIO.create()
-        ) =
-            RecaptchaV2Client.create(siteKey, useRecaptchaDotNetEndpoint, engine)
-
-        fun createV3(
-            siteKey: String,
-            defaultScoreThreshold: Double = 0.5,
-            useRecaptchaDotNetEndpoint: Boolean = false,
-            engine: HttpClientEngine = CIO.create()
-        ) = RecaptchaV3Client.create(siteKey, defaultScoreThreshold, useRecaptchaDotNetEndpoint, engine)
 
     }
 

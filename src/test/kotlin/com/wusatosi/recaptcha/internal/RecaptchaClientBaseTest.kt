@@ -3,8 +3,8 @@ package com.wusatosi.recaptcha.internal
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser.parseString
 import com.wusatosi.recaptcha.RecaptchaIOError
-import com.wusatosi.recaptcha.UnableToDeserializeError
 import com.wusatosi.recaptcha.UnexpectedError
+import com.wusatosi.recaptcha.UnexpectedJsonStructure
 import io.ktor.client.engine.*
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
@@ -112,7 +112,7 @@ class RecaptchaClientBaseTest {
             val mockEngine = MockEngine {
                 respondOk("{abcdefg")
             }
-            assertThrows<UnableToDeserializeError> { simulate(mockEngine) }
+            assertThrows<UnexpectedJsonStructure> { simulate(mockEngine) }
         }
 
     @Test
@@ -121,7 +121,7 @@ class RecaptchaClientBaseTest {
             val mockEngine = MockEngine {
                 respondOk("abcdefg")
             }
-            assertThrows<UnableToDeserializeError> { simulate(mockEngine) }
+            assertThrows<UnexpectedJsonStructure> { simulate(mockEngine) }
         }
 
 }

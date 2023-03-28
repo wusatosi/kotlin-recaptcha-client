@@ -3,7 +3,6 @@ package com.wusatosi.recaptcha.internal
 import com.google.gson.JsonObject
 import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
-import com.google.gson.JsonSyntaxException
 import com.wusatosi.recaptcha.*
 import io.ktor.client.*
 import io.ktor.client.engine.*
@@ -42,15 +41,12 @@ internal abstract class RecaptchaClientBase(
         if (status.value !in 200..299)
             throw UnexpectedError("Invalid respond status code: ${status.value}, ${status.description}", null)
 
-        val body = try {
-            JsonParser.parseString(response.bodyAsText())
-        } catch (syntax: JsonSyntaxException) {
-            throw UnableToDeserializeError(syntax)
+        return try {
+            val body = JsonParser.parseString(response.bodyAsText())
+            body.asJsonObject!!
+        } catch (error: JsonParseException) {
+            throw UnexpectedJsonStructure("The server did not respond with a valid Json object", error)
         }
-
-        if (!body.isJsonObject)
-            throw UnableToDeserializeError(JsonParseException("expected object"))
-        return body.asJsonObject
     }
 
     override fun close() = client.close()

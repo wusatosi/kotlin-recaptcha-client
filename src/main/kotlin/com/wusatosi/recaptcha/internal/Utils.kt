@@ -4,11 +4,8 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonPrimitive
 import com.wusatosi.recaptcha.InvalidSiteKeyException
-import com.wusatosi.recaptcha.UnexpectedError
 import com.wusatosi.recaptcha.UnexpectedJsonStructure
 import java.util.regex.Pattern
-
-internal const val issue_address = "https://github.com/wusatosi/kotlin-recaptcha-client/issues/new"
 
 private val pattern = Pattern.compile("^[-a-zA-Z0-9+&@#/%?=~_!:,.;]*[-a-zA-Z0-9+&@#/%=~_]")
 internal fun checkURLCompatibility(target: String): Boolean = pattern.matcher(target).matches()
@@ -27,21 +24,14 @@ internal fun checkErrorCodes(
 //                invalid-input-response	The response parameter is invalid or malformed.
 //                bad-request	            The request is invalid or malformed.
 //                timeout-or-duplicate      Timeout... (didn't include in the v3 documentation)
-        when {
-            string.startsWith("missing-") || string == "bad-request" ->
-                throw UnexpectedError("assertion failed, should not report $string", null)
-
-            string == "invalid-input-secret" ->
+        when (string) {
+            "invalid-input-secret" ->
                 throw InvalidSiteKeyException
-
-            string == "invalid-input-response" ->
+            "invalid-input-response" ->
                 return invalidate_token_score
-
-            string == "timeout-or-duplicate" ->
+            "timeout-or-duplicate" ->
                 return timeout_or_duplicate_score
-
-            else ->
-                UnexpectedJsonStructure("unexpected error code: $string")
+            else -> UnexpectedJsonStructure("unexpected error code: $string")
         }
     }
     throw UnexpectedJsonStructure("empty error code")
