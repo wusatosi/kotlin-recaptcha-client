@@ -12,13 +12,20 @@ repositories {
 dependencies {
     implementation('org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4')
 
-//    Http client used in this project
-    implementation('com.github.kittinunf.fuel:fuel:2.3.1')
+    def ktor_version = "2.2.4"
+    implementation("io.ktor:ktor-client-core:$ktor_version")
+    implementation("io.ktor:ktor-client-cio:$ktor_version")
 
+    testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
+    testImplementation("io.ktor:ktor-client-mock:$ktor_version")
 
 //    Json parser
     implementation('com.google.code.gson:gson:2.10.1')
 
+}
+
+test {
+    useJUnitPlatform()
 }
 
 compileKotlin {

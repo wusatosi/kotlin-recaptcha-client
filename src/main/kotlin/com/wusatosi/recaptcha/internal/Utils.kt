@@ -1,42 +1,14 @@
 package com.wusatosi.recaptcha.internal
 
-import com.github.kittinunf.fuel.Fuel
-import com.github.kittinunf.fuel.core.Deserializable
-import com.github.kittinunf.fuel.core.FuelError
-import com.github.kittinunf.fuel.core.Response
-import com.github.kittinunf.fuel.core.awaitResponse
-import com.google.gson.*
-import com.wusatosi.recaptcha.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.IOException
+import com.google.gson.JsonArray
+import com.google.gson.JsonElement
+import com.google.gson.JsonPrimitive
+import com.wusatosi.recaptcha.InvalidSiteKeyException
+import com.wusatosi.recaptcha.UnexpectedError
+import com.wusatosi.recaptcha.UnexpectedJsonStructure
 import java.util.regex.Pattern
 
 internal const val issue_address = "https://github.com/wusatosi/kotlin-recaptcha-client/issues/new"
-
-internal suspend fun getJsonObj(baseURL: String, token: String): JsonObject {
-    try {
-        val (_, _, res) = withContext(Dispatchers.IO) {
-            Fuel
-                .post(baseURL + token)
-                .awaitResponse(JsonResponseDeserializer)
-        }
-
-        if (!res.isJsonObject)
-            throw UnexpectedJsonStructure("response json isn't an object")
-        return res.asJsonObject
-    } catch (error: FuelError) {
-        when (val cause = error.cause) {
-            is JsonParseException -> throw UnableToDeserializeError(cause)
-            is IOException -> throw RecaptchaIOError(cause)
-            else ->
-                throw UnexpectedError(
-                    "Unexpected error occurred when requesting verification ${cause ?: ""}",
-                    cause
-                )
-        }
-    }
-}
 
 private val pattern = Pattern.compile("^[-a-zA-Z0-9+&@#/%?=~_!:,.;]*[-a-zA-Z0-9+&@#/%=~_]")
 internal fun checkURLCompatibility(target: String): Boolean = pattern.matcher(target).matches()
@@ -130,17 +102,4 @@ private fun JsonElement?.expectNonNull(attributeName: String) {
     this ?: throw UnexpectedJsonStructure(
         "$attributeName do not exists"
     )
-}
-
-private object JsonResponseDeserializer : Deserializable<JsonElement> {
-    override fun deserialize(response: Response): JsonElement {
-        val statusCode = response.statusCode
-        if (statusCode !in 200..299)
-            throw UnexpectedError(
-                "Google is down (seems like), server returns status code: $statusCode, " +
-                        "body: ${kotlin.runCatching { String(response.data) }.getOrElse { "unavailable" }}",
-                null
-            )
-        return JsonParser.parseString(String(response.data))
-    }
 }
