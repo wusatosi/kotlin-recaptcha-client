@@ -19,7 +19,6 @@ internal class UniversalRecaptchaClientImpl(
         val obj = getJsonObj(validateURL, token)
 
         val isSuccess = obj["success"]
-            .expectPrimitive("success")
             .expectBoolean("success")
 
         if (!isSuccess) {
@@ -32,7 +31,6 @@ internal class UniversalRecaptchaClientImpl(
         val scoreIndicate = obj["score"] ?: return isSuccess
 
         val score = scoreIndicate
-            .expectPrimitive("score")
             .expectNumber("score")
             .asDouble
 

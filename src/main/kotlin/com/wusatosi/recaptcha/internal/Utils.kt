@@ -2,9 +2,9 @@ package com.wusatosi.recaptcha.internal
 
 import com.github.kittinunf.fuel.Fuel
 import com.github.kittinunf.fuel.core.Deserializable
+import com.github.kittinunf.fuel.core.FuelError
 import com.github.kittinunf.fuel.core.Response
 import com.github.kittinunf.fuel.core.awaitResponse
-import com.github.kittinunf.result.Result
 import com.google.gson.*
 import com.wusatosi.recaptcha.*
 import kotlinx.coroutines.Dispatchers
@@ -15,16 +15,18 @@ import java.util.regex.Pattern
 internal const val issue_address = "https://github.com/wusatosi/kotlin-recaptcha-client/issues/new"
 
 internal suspend fun getJsonObj(baseURL: String, token: String): JsonObject {
-//    Fuel 1.16.0 will not do request within IO dispatcher, it blocks the process... (fixed in current master branch)
-    val (_, _, result) = withContext(Dispatchers.IO) {
-        Fuel
-            .post(baseURL + token)
-            .awaitResponse(JsonResponseDeserializer)
-    }
+    try {
+        val (_, _, res) = withContext(Dispatchers.IO) {
+            Fuel
+                .post(baseURL + token)
+                .awaitResponse(JsonResponseDeserializer)
+        }
 
-    if (result is Result.Failure<*>) {
-        val cause = result.error.cause
-        when (cause) {
+        if (!res.isJsonObject)
+            throw UnexpectedJsonStructure("response json isn't an object")
+        return res.asJsonObject
+    } catch (error: FuelError) {
+        when (val cause = error.cause) {
             is JsonParseException -> throw UnableToDeserializeError(cause)
             is IOException -> throw RecaptchaIOError(cause)
             else ->
@@ -34,12 +36,6 @@ internal suspend fun getJsonObj(baseURL: String, token: String): JsonObject {
                 )
         }
     }
-
-    val res = result.asJsonObject
-    if (!res.isJsonObject)
-        throw UnexpectedJsonStructure("response json isn't an object")
-
-    return res.asJsonObject
 }
 
 private val pattern = Pattern.compile("^[-a-zA-Z0-9+&@#/%?=~_!:,.;]*[-a-zA-Z0-9+&@#/%=~_]")
@@ -97,15 +93,6 @@ internal fun JsonElement?.expectPrimitive(attributeName: String): JsonPrimitive 
     return this.asJsonPrimitive
 }
 
-internal fun JsonElement?.expectObject(attributeName: String): JsonObject {
-    this.expectNonNull(attributeName)
-    if (!this!!.isJsonObject)
-        throw UnexpectedJsonStructure(
-            "$attributeName attribute is not an object"
-        )
-    return this.asJsonObject
-}
-
 internal fun JsonElement?.expectString(attributeName: String): String {
     this.expectNonNull(attributeName)
     if (!this.expectPrimitive(attributeName).isString)
@@ -123,6 +110,10 @@ internal fun JsonPrimitive.expectBoolean(attributeName: String): Boolean {
     return this.asBoolean
 }
 
+internal fun JsonElement.expectBoolean(attributeName: String) = this
+    .expectPrimitive(attributeName)
+    .expectBoolean(attributeName)
+
 internal fun JsonPrimitive.expectNumber(attributeName: String): JsonPrimitive {
     if (!this.isNumber)
         throw UnexpectedJsonStructure(
@@ -130,6 +121,10 @@ internal fun JsonPrimitive.expectNumber(attributeName: String): JsonPrimitive {
         )
     return this
 }
+
+internal fun JsonElement.expectNumber(attributeName: String) = this
+    .expectPrimitive(attributeName)
+    .expectNumber(attributeName)
 
 private fun JsonElement?.expectNonNull(attributeName: String) {
     this ?: throw UnexpectedJsonStructure(
@@ -146,6 +141,6 @@ private object JsonResponseDeserializer : Deserializable<JsonElement> {
                         "body: ${kotlin.runCatching { String(response.data) }.getOrElse { "unavailable" }}",
                 null
             )
-        return JsonParser().parse(String(response.data))
+        return JsonParser.parseString(String(response.data))
     }
 }
