@@ -1,16 +1,15 @@
 package com.wusatosi.recaptcha.internal
 
 import com.google.gson.JsonObject
+import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
 import com.google.gson.JsonSyntaxException
 import com.wusatosi.recaptcha.*
 import io.ktor.client.*
 import io.ktor.client.engine.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.serialization.gson.*
 import java.io.IOException
 
 internal abstract class RecaptchaClientBase(
@@ -19,11 +18,7 @@ internal abstract class RecaptchaClientBase(
     engine: HttpClientEngine
 ) : RecaptchaClient {
 
-    protected val client: HttpClient = HttpClient(engine) {
-        install(ContentNegotiation) {
-            gson()
-        }
-    }
+    protected val client: HttpClient = HttpClient(engine) {}
     private val validateHost = if (useRecaptchaDotNetEndPoint) "www.recaptcha.net" else "www.google.com"
     private val path = "/recaptcha/api/siteverify"
 
@@ -57,7 +52,7 @@ internal abstract class RecaptchaClientBase(
         }
 
         if (!body.isJsonObject)
-            throw UnexpectedJsonStructure("response json isn't an object")
+            throw UnableToDeserializeError(JsonParseException("expected object"))
         return body.asJsonObject
     }
 
