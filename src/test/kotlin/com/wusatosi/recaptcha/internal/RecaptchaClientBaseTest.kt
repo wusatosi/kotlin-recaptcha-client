@@ -48,10 +48,10 @@ class RecaptchaClientBaseTest {
             val token = "token"
 
             val mockEngine = MockEngine {
-                assertEquals(it.url.host, "www.google.com")
-                assertEquals(it.url.encodedPath, "/recaptcha/api/siteverify")
-                assertEquals(it.url.encodedQuery, "secret=$siteKey&response=$token")
-                assertEquals(it.method, HttpMethod.Post)
+                assertEquals("www.google.com", it.url.host)
+                assertEquals("/recaptcha/api/siteverify", it.url.encodedPath)
+                assertEquals("secret=$siteKey&response=$token", it.url.encodedQuery)
+                assertEquals(HttpMethod.Post, it.method)
                 respondOk("{}")
             }
 
