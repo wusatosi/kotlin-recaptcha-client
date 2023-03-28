@@ -22,9 +22,6 @@ internal abstract class RecaptchaClientBase(
     private val validateHost = if (useRecaptchaDotNetEndPoint) "www.recaptcha.net" else "www.google.com"
     private val path = "/recaptcha/api/siteverify"
 
-    // TODO: remove me after switch to ktor
-    protected val validateURL = "https://$validateHost/$path?secret=$secretKey&response="
-
     protected suspend fun transact(token: String): JsonObject {
         val response =
             try {

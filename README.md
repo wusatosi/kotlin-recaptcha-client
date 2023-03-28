@@ -81,7 +81,7 @@ RecaptchaClient.createV3("your secret key...", true)
 
 ## Uses:
 * [Kotlin-coroutines](https://github.com/Kotlin/kotlinx.coroutines)
-* [Fuel](https://github.com/kittinunf/Fuel) (http client)
+* [Ktor](https://ktor.io/docs/welcome.html) (http client)
 * [Gson](https://github.com/google/gson)
 
 ## License

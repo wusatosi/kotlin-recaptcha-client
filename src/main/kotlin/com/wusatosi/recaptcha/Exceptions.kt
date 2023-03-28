@@ -1,6 +1,5 @@
 package com.wusatosi.recaptcha
 
-import com.github.kittinunf.fuel.core.Response
 import com.google.gson.JsonParseException
 import com.wusatosi.recaptcha.internal.issue_address
 import java.io.IOException

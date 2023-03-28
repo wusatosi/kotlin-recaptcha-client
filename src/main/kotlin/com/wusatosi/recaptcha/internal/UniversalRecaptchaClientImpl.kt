@@ -14,7 +14,7 @@ internal class UniversalRecaptchaClientImpl(
         if (!checkURLCompatibility(token))
             return false
 
-        val obj = getJsonObj(validateURL, token)
+        val obj = transact(token)
 
         val isSuccess = obj["success"]
             .expectBoolean("success")

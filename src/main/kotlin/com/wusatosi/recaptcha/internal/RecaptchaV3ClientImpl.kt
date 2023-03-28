@@ -20,7 +20,7 @@ internal class RecaptchaV3ClientImpl(
 //        that is valid for a URL string
         if (!checkURLCompatibility(token)) return invalidate_token_score
 
-        val obj = getJsonObj("validateURL", token)
+        val obj = transact(token)
 
         val isSuccess = obj["success"]
             .expectPrimitive("success")
