@@ -1,16 +1,14 @@
 package com.wusatosi.recaptcha.internal
 
 import com.wusatosi.recaptcha.v3.RecaptchaV3Client
+import io.ktor.client.engine.*
 
 internal class RecaptchaV3ClientImpl(
     secretKey: String,
-    private val defaultScoreThreshold: Double = 0.5,
-    useRecaptchaDotNetEndPoint: Boolean = false
-) : RecaptchaV3Client {
-
-    private val validateURL = "https://" +
-            (if (useRecaptchaDotNetEndPoint) "www.recaptcha.net" else "www.google.com") +
-            "/recaptcha/api/siteverify?secret=$secretKey&response="
+    private val defaultScoreThreshold: Double,
+    useRecaptchaDotNetEndPoint: Boolean,
+    engine: HttpClientEngine
+) : RecaptchaClientBase(secretKey, useRecaptchaDotNetEndPoint, engine), RecaptchaV3Client {
 
     override suspend fun getVerifyScore(
         token: String,
@@ -22,7 +20,7 @@ internal class RecaptchaV3ClientImpl(
 //        that is valid for a URL string
         if (!checkURLCompatibility(token)) return invalidate_token_score
 
-        val obj = getJsonObj(validateURL, token)
+        val obj = getJsonObj("validateURL", token)
 
         val isSuccess = obj["success"]
             .expectPrimitive("success")

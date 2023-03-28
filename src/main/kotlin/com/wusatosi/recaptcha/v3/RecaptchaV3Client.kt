@@ -4,6 +4,8 @@ import com.wusatosi.recaptcha.InvalidSiteKeyException
 import com.wusatosi.recaptcha.RecaptchaClient
 import com.wusatosi.recaptcha.internal.RecaptchaV3ClientImpl
 import com.wusatosi.recaptcha.internal.checkURLCompatibility
+import io.ktor.client.engine.*
+import io.ktor.client.engine.cio.*
 
 interface RecaptchaV3Client : RecaptchaClient {
 
@@ -17,14 +19,16 @@ interface RecaptchaV3Client : RecaptchaClient {
         fun create(
             secretKey: String,
             defaultScoreThreshold: Double = 0.5,
-            useRecaptchaDotNetEndPoint: Boolean = false
+            useRecaptchaDotNetEndPoint: Boolean = false,
+            engine: HttpClientEngine = CIO.create()
         ): RecaptchaV3Client {
             if (!checkURLCompatibility(secretKey))
                 throw InvalidSiteKeyException
             return RecaptchaV3ClientImpl(
                 secretKey,
                 defaultScoreThreshold,
-                useRecaptchaDotNetEndPoint
+                useRecaptchaDotNetEndPoint,
+                engine
             )
         }
     }
