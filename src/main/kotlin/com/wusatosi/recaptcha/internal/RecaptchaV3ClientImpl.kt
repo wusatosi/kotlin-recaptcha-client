@@ -16,11 +16,12 @@ internal class RecaptchaV3ClientImpl(
     override suspend fun getVerifyScore(
         token: String,
         invalidateTokenScore: Double,
-        timeoutOrDuplicateScore: Double
+        timeoutOrDuplicateScore: Double,
+        remoteIp: String
     ): Double {
         if (!likelyValidRecaptchaParameter(token)) return invalidateTokenScore
 
-        val response = transact(token)
+        val response = transact(token, remoteIp)
         val (isSuccess, errorCodes) = interpretResponseBody(response)
         return if (isSuccess) {
             response[SCORE_ATTRIBUTE]
@@ -43,6 +44,6 @@ internal class RecaptchaV3ClientImpl(
         throw UnexpectedError("unexpected error codes: $errorCodes")
     }
 
-    override suspend fun verify(token: String): Boolean = getVerifyScore(token) > defaultScoreThreshold
+    override suspend fun verify(token: String, remoteIp: String): Boolean = getVerifyScore(token) > defaultScoreThreshold
 
 }

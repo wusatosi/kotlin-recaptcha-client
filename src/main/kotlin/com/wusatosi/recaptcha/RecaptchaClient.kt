@@ -10,7 +10,7 @@ import java.io.Closeable
 interface RecaptchaClient : Closeable {
 
     @Throws(RecaptchaError::class)
-    suspend fun verify(token: String): Boolean
+    suspend fun verify(token: String, remoteIp: String = ""): Boolean
 
     companion object {
 

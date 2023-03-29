@@ -22,7 +22,8 @@ class RecaptchaClientBaseTest {
         engine: HttpClientEngine,
         siteKey: String = "key",
         token: String = "token",
-        useRecaptchaDotNetEndPoint: Boolean = false
+        useRecaptchaDotNetEndPoint: Boolean = false,
+        remoteIp: String = ""
     ): JsonObject? {
         var result: JsonObject? = null
 
@@ -32,19 +33,19 @@ class RecaptchaClientBaseTest {
             useRecaptchaDotNetEndPoint: Boolean,
         ) :
             RecaptchaClientBase(siteKey, useRecaptchaDotNetEndPoint, engine) {
-            override suspend fun verify(token: String): Boolean {
-                result = transact(token)
+            override suspend fun verify(token: String, remoteIp: String): Boolean {
+                result = transact(token, remoteIp)
                 return true
             }
         }
 
-        Subject(engine, siteKey, useRecaptchaDotNetEndPoint).use { it.verify(token) }
+        Subject(engine, siteKey, useRecaptchaDotNetEndPoint).use { it.verify(token, remoteIp) }
         return result
     }
 
     private fun simulateInterpretBody(body: String): Pair<Boolean, List<String>> {
         class Subject : RecaptchaClientBase("", false, MockEngine { respondOk() }) {
-            override suspend fun verify(token: String): Boolean {
+            override suspend fun verify(token: String, remoteIp: String): Boolean {
                 return true
             }
 
@@ -72,6 +73,42 @@ class RecaptchaClientBaseTest {
             }
 
             simulateVerify(mockEngine, siteKey, token)
+        }
+
+    @Test
+    fun properParameters_withV4Ip() =
+        runBlocking<Unit> {
+            val siteKey = "key"
+            val token = "token"
+            val remoteIpV4 = "1.2.3.4"
+
+            val mockEngine = MockEngine {
+                assertEquals("www.google.com", it.url.host)
+                assertEquals("/recaptcha/api/siteverify", it.url.encodedPath)
+                assertEquals("secret=$siteKey&response=$token&remoteip=$remoteIpV4", it.url.encodedQuery)
+                assertEquals(HttpMethod.Post, it.method)
+                respondOk("{}")
+            }
+
+            simulateVerify(mockEngine, siteKey, token, remoteIp = remoteIpV4)
+        }
+
+    @Test
+    fun properParameters_withV6Ip() =
+        runBlocking<Unit> {
+            val siteKey = "key"
+            val token = "token"
+            val remoteIpV6 = "1111:2222:3333:4444:5555:6666:7777:8888"
+
+            val mockEngine = MockEngine {
+                assertEquals("www.google.com", it.url.host)
+                assertEquals("/recaptcha/api/siteverify", it.url.encodedPath)
+                assertEquals("secret=$siteKey&response=$token&remoteip=$remoteIpV6", it.url.encodedQuery)
+                assertEquals(HttpMethod.Post, it.method)
+                respondOk("{}")
+            }
+
+            simulateVerify(mockEngine, siteKey, token, remoteIp = remoteIpV6)
         }
 
     @Test

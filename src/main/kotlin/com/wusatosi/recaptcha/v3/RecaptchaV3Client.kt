@@ -15,7 +15,8 @@ interface RecaptchaV3Client : RecaptchaClient {
     suspend fun getVerifyScore(
         token: String,
         invalidateTokenScore: Double = -1.0,
-        timeoutOrDuplicateScore: Double = -2.0
+        timeoutOrDuplicateScore: Double = -2.0,
+        remoteIp: String = ""
     ): Double
 
     companion object {

@@ -10,11 +10,11 @@ internal class UniversalRecaptchaClientImpl(
     engine: HttpClientEngine
 ) : RecaptchaClientBase(secretKey, useRecaptchaDotNetEndPoint, engine), RecaptchaClient {
 
-    override suspend fun verify(token: String): Boolean {
+    override suspend fun verify(token: String, remoteIp: String): Boolean {
         if (!likelyValidRecaptchaParameter(token))
             return false
 
-        val response = transact(token)
+        val response = transact(token, remoteIp)
         val (isSuccess, _) = interpretResponseBody(response)
 
         val score = response["score"]

@@ -38,8 +38,8 @@ internal abstract class RecaptchaClientBase(
     private val client: HttpClient = HttpClient(engine) {}
     private val validateHost = if (!useRecaptchaDotNetEndPoint) DEFAULT_DOMAIN else ALTERNATE_DOMAIN
 
-    protected suspend fun transact(token: String): JsonObject {
-        val response = executeRequest(token)
+    protected suspend fun transact(token: String, remoteIp: String): JsonObject {
+        val response = executeRequest(token, remoteIp)
         checkResponseStatus(response)
         try {
             val body = JsonParser.parseString(response.bodyAsText())
@@ -60,7 +60,7 @@ internal abstract class RecaptchaClientBase(
             throw UnexpectedError("Invalid respond status code: ${status.value}, ${status.description}", null)
     }
 
-    private suspend fun executeRequest(token: String) = try {
+    private suspend fun executeRequest(token: String, remoteIp: String) = try {
         client.post {
             url {
                 protocol = URLProtocol.HTTPS
@@ -68,6 +68,8 @@ internal abstract class RecaptchaClientBase(
                 path(VALIDATION_PATH)
                 parameters.append("secret", secretKey)
                 parameters.append("response", token)
+                if (remoteIp.isNotEmpty())
+                    parameters.append("remoteip", remoteIp)
             }
         }
     } catch (io: IOException) {
