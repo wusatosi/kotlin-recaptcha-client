@@ -5,7 +5,6 @@ import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
 import com.wusatosi.recaptcha.*
 import io.ktor.client.*
-import io.ktor.client.engine.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -31,12 +30,12 @@ private const val ERROR_CODES_ATTRIBUTE = "error-codes"
 
 internal abstract class RecaptchaClientBase(
     private val secretKey: String,
-    useRecaptchaDotNetEndPoint: Boolean,
-    engine: HttpClientEngine
+    recaptchaConfig: RecaptchaConfig
 ) : RecaptchaClient {
 
-    private val client: HttpClient = HttpClient(engine) {}
-    private val validateHost = if (!useRecaptchaDotNetEndPoint) DEFAULT_DOMAIN else ALTERNATE_DOMAIN
+    private val client: HttpClient = HttpClient(recaptchaConfig.engine) {}
+    private val validateHost = if (!recaptchaConfig.useAlternativeDomain) DEFAULT_DOMAIN else ALTERNATE_DOMAIN
+    private val acceptableHosts: List<String> = ArrayList(recaptchaConfig.hostList)
 
     protected suspend fun transact(token: String, remoteIp: String): JsonObject {
         val response = executeRequest(token, remoteIp)
@@ -76,15 +75,28 @@ internal abstract class RecaptchaClientBase(
         throw RecaptchaIOError(io)
     }
 
-    protected fun interpretResponseBody(body: JsonObject): Pair<Boolean, List<String>> {
-        val isSuccess = body[SUCCESS_ATTRIBUTE]
+    internal data class BasicResponseBody(
+        val success: Boolean,
+        val matchedHost: Boolean,
+        val errorCodes: List<String>,
+        val host: String
+    )
+
+    protected fun interpretResponseBody(body: JsonObject): BasicResponseBody {
+        val success = body[SUCCESS_ATTRIBUTE]
             .expectBoolean(SUCCESS_ATTRIBUTE)
         val errorCodes = body[ERROR_CODES_ATTRIBUTE]
             ?.let { it.expectStringArray(ERROR_CODES_ATTRIBUTE) }
             ?: listOf()
+
         if (INVALID_SITE_SECRET_KEY in errorCodes)
             throw InvalidSiteKeyException
-        return isSuccess to errorCodes
+
+        val hostName = body["hostname"]
+            .expectString("hostname")
+        val matchedHost = acceptableHosts.isEmpty() || hostName in acceptableHosts
+
+        return BasicResponseBody(success, matchedHost, errorCodes, hostName)
     }
 
     override fun close() = client.close()

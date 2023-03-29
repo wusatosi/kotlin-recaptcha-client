@@ -14,7 +14,7 @@ class RecaptchaV2Test {
         val engine = MockEngine {
             respondOk(jsonStr)
         }
-        val client = RecaptchaV2Client.create("site", engine = engine)
+        val client = RecaptchaV2Client.create("site") { this.engine = engine }
         return client.use { it.verify(token) }
     }
 

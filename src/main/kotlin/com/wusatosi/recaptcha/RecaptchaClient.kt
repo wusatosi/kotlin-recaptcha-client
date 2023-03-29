@@ -23,11 +23,14 @@ interface RecaptchaClient : Closeable {
             if (!likelyValidRecaptchaParameter(secretKey))
                 throw InvalidSiteKeyException
 
+            val config = RecaptchaV3Config()
+            config.scoreThreshold = defaultScoreThreshold
+            config.useAlternativeDomain = useRecaptchaDotNetEndPoint
+            config.engine = engine
+
             return UniversalRecaptchaClientImpl(
                 secretKey,
-                defaultScoreThreshold,
-                useRecaptchaDotNetEndPoint,
-                engine
+                config
             )
         }
 

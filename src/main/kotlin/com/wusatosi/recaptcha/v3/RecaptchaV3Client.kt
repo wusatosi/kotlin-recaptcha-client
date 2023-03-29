@@ -1,8 +1,6 @@
 package com.wusatosi.recaptcha.v3
 
-import com.wusatosi.recaptcha.InvalidSiteKeyException
-import com.wusatosi.recaptcha.RecaptchaClient
-import com.wusatosi.recaptcha.RecaptchaError
+import com.wusatosi.recaptcha.*
 import com.wusatosi.recaptcha.internal.RecaptchaV3ClientImpl
 import com.wusatosi.recaptcha.internal.likelyValidRecaptchaParameter
 import io.ktor.client.engine.*
@@ -19,6 +17,16 @@ interface RecaptchaV3Client : RecaptchaClient {
         remoteIp: String = ""
     ): Double
 
+    enum class TokenErrors {
+        INVALID_SCORE,
+        TIMEOUT_OR_DUPLICATE
+    }
+
+    data class V3Result(
+        val score: Either<Double, TokenErrors>,
+        val action: String
+    )
+
     companion object {
         fun create(
             secretKey: String,
@@ -28,11 +36,16 @@ interface RecaptchaV3Client : RecaptchaClient {
         ): RecaptchaV3Client {
             if (!likelyValidRecaptchaParameter(secretKey))
                 throw InvalidSiteKeyException
+
+
+            val config = RecaptchaV3Config()
+            config.scoreThreshold = defaultScoreThreshold
+            config.useAlternativeDomain = useRecaptchaDotNetEndPoint
+            config.engine = engine
+
             return RecaptchaV3ClientImpl(
                 secretKey,
-                defaultScoreThreshold,
-                useRecaptchaDotNetEndPoint,
-                engine
+                config
             )
         }
     }

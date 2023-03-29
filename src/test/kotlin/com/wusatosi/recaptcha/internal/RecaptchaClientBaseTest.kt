@@ -2,10 +2,8 @@ package com.wusatosi.recaptcha.internal
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser.parseString
-import com.wusatosi.recaptcha.InvalidSiteKeyException
-import com.wusatosi.recaptcha.RecaptchaIOError
-import com.wusatosi.recaptcha.UnexpectedError
-import com.wusatosi.recaptcha.UnexpectedJsonStructure
+import com.wusatosi.recaptcha.*
+import com.wusatosi.recaptcha.internal.RecaptchaClientBase.BasicResponseBody
 import io.ktor.client.engine.*
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
@@ -15,6 +13,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.IOException
+import java.net.URLEncoder
 
 class RecaptchaClientBaseTest {
 
@@ -27,29 +26,33 @@ class RecaptchaClientBaseTest {
     ): JsonObject? {
         var result: JsonObject? = null
 
+        val config = RecaptchaV2Config()
+        config.useAlternativeDomain = useRecaptchaDotNetEndPoint
+        config.engine = engine
+
         class Subject(
-            engine: HttpClientEngine,
             siteKey: String,
-            useRecaptchaDotNetEndPoint: Boolean,
         ) :
-            RecaptchaClientBase(siteKey, useRecaptchaDotNetEndPoint, engine) {
+            RecaptchaClientBase(siteKey, config) {
             override suspend fun verify(token: String, remoteIp: String): Boolean {
                 result = transact(token, remoteIp)
                 return true
             }
         }
 
-        Subject(engine, siteKey, useRecaptchaDotNetEndPoint).use { it.verify(token, remoteIp) }
+        Subject(siteKey).use { it.verify(token, remoteIp) }
         return result
     }
 
-    private fun simulateInterpretBody(body: String): Pair<Boolean, List<String>> {
-        class Subject : RecaptchaClientBase("", false, MockEngine { respondOk() }) {
+    private fun simulateInterpretBody(body: String): BasicResponseBody {
+        val config = RecaptchaV2Config()
+        config.engine = MockEngine { respondOk() }
+        class Subject : RecaptchaClientBase("", config) {
             override suspend fun verify(token: String, remoteIp: String): Boolean {
                 return true
             }
 
-            fun exposeInternal(payload: JsonObject): Pair<Boolean, List<String>> {
+            fun exposeInternal(payload: JsonObject): BasicResponseBody {
                 return this.interpretResponseBody(payload)
             }
         }
@@ -103,7 +106,10 @@ class RecaptchaClientBaseTest {
             val mockEngine = MockEngine {
                 assertEquals("www.google.com", it.url.host)
                 assertEquals("/recaptcha/api/siteverify", it.url.encodedPath)
-                assertEquals("secret=$siteKey&response=$token&remoteip=$remoteIpV6", it.url.encodedQuery)
+                assertEquals(
+                    "secret=$siteKey&response=$token&remoteip=${URLEncoder.encode(remoteIpV6, "UTF-8")}",
+                    it.url.encodedQuery
+                )
                 assertEquals(HttpMethod.Post, it.method)
                 respondOk("{}")
             }
@@ -185,7 +191,7 @@ class RecaptchaClientBaseTest {
                   "hostname": "wusatosi.com"
                 }
             """.trimIndent()
-        val (success, errorCodes) = simulateInterpretBody(jsonStr)
+        val (success, _, errorCodes) = simulateInterpretBody(jsonStr)
         assert(success)
         assertEquals(listOf<String>(), errorCodes)
     }
@@ -198,7 +204,7 @@ class RecaptchaClientBaseTest {
                   "hostname": "wusatosi.com"
                 }
             """.trimIndent()
-        val (success, errorCodes) = simulateInterpretBody(jsonStr)
+        val (success, _, errorCodes) = simulateInterpretBody(jsonStr)
         assert(!success)
         assertEquals(listOf<String>(), errorCodes)
     }
@@ -209,10 +215,11 @@ class RecaptchaClientBaseTest {
             @Language("JSON") val jsonStr = """
                 {
                   "success": false,
+                  "hostname": "wusatosi.com",
                   "error-codes": []
                 }
             """.trimIndent()
-            val (success, errorCodes) = simulateInterpretBody(jsonStr)
+            val (success, _, errorCodes) = simulateInterpretBody(jsonStr)
             assert(!success)
             assertEquals(listOf<String>(), errorCodes)
         }
@@ -221,10 +228,11 @@ class RecaptchaClientBaseTest {
             @Language("JSON") val jsonStr = """
                 {
                   "success": true,
+                  "hostname": "wusatosi.com",
                   "error-codes": []
                 }
             """.trimIndent()
-            val (success, errorCodes) = simulateInterpretBody(jsonStr)
+            val (success, _, errorCodes) = simulateInterpretBody(jsonStr)
             assert(success)
             assertEquals(listOf<String>(), errorCodes)
         }
@@ -261,6 +269,7 @@ class RecaptchaClientBaseTest {
             @Language("JSON") val singleError = """
                 {
                   "success": false,
+                  "hostname": "wusatosi.com",
                   "error-codes": ["invalid-input-secret"]
                 }
             """.trimIndent()
@@ -269,6 +278,7 @@ class RecaptchaClientBaseTest {
             @Language("JSON") val twoError = """
                 {
                   "success": false,
+                  "hostname": "wusatosi.com",
                   "error-codes": ["invalid-input-response", "invalid-input-secret"]
                 }
             """.trimIndent()
@@ -277,6 +287,7 @@ class RecaptchaClientBaseTest {
             @Language("JSON") val threeError = """
                 {
                   "success": false,
+                  "hostname": "wusatosi.com",
                   "error-codes": ["invalid-input-response", "invalid-input-secret", "timeout-or-duplicate"]
                 }
             """.trimIndent()

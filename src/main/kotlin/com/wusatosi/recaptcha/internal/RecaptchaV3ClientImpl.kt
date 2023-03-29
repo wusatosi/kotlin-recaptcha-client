@@ -1,17 +1,18 @@
 package com.wusatosi.recaptcha.internal
 
+import com.wusatosi.recaptcha.Either
+import com.wusatosi.recaptcha.RecaptchaV3Config
 import com.wusatosi.recaptcha.UnexpectedError
 import com.wusatosi.recaptcha.v3.RecaptchaV3Client
-import io.ktor.client.engine.*
 
 private const val SCORE_ATTRIBUTE = "score"
 
 internal class RecaptchaV3ClientImpl(
     secretKey: String,
-    private val defaultScoreThreshold: Double,
-    useRecaptchaDotNetEndPoint: Boolean,
-    engine: HttpClientEngine
-) : RecaptchaClientBase(secretKey, useRecaptchaDotNetEndPoint, engine), RecaptchaV3Client {
+    config: RecaptchaV3Config
+) : RecaptchaClientBase(secretKey, config), RecaptchaV3Client {
+
+    private val actionToScoreThreshold = config.actionToScoreThreshold
 
     override suspend fun getVerifyScore(
         token: String,
@@ -22,28 +23,71 @@ internal class RecaptchaV3ClientImpl(
         if (!likelyValidRecaptchaParameter(token)) return invalidateTokenScore
 
         val response = transact(token, remoteIp)
-        val (isSuccess, errorCodes) = interpretResponseBody(response)
+        val (isSuccess, matchedHost, errorCodes) = interpretResponseBody(response)
         return if (isSuccess) {
             response[SCORE_ATTRIBUTE]
                 .expectNumber(SCORE_ATTRIBUTE)
                 .asDouble
         } else {
-            mapErrorCodes(errorCodes, invalidateTokenScore, timeoutOrDuplicateScore)
+            if (matchedHost)
+                when (mapErrorCode(errorCodes)) {
+                    V3ErrorCode.InvalidToken -> invalidateTokenScore
+                    V3ErrorCode.TimeOrDuplicatedToken -> timeoutOrDuplicateScore
+                    else -> throw UnexpectedError("Cannot interpret error code: $errorCodes")
+                }
+            else
+                0.0
         }
     }
 
-    private fun mapErrorCodes(
-        errorCodes: List<String>,
-        invalidTokenScore: Double,
-        timeoutOrDuplicateTokenScore: Double
-    ): Double {
-        if (INVALID_TOKEN_KEY in errorCodes)
-            return invalidTokenScore
-        if (TIMEOUT_OR_DUPLICATE_KEY in errorCodes)
-            return timeoutOrDuplicateTokenScore
-        throw UnexpectedError("unexpected error codes: $errorCodes")
+    data class V3ResponseDetail(
+        val success: Boolean,
+        val score: Double,
+        val action: String,
+        val error: V3ErrorCode?,
+        val host: String
+    )
+
+    enum class V3ErrorCode {
+        InvalidToken,
+        TimeOrDuplicatedToken
     }
 
-    override suspend fun verify(token: String, remoteIp: String): Boolean = getVerifyScore(token) > defaultScoreThreshold
+    object PreCheckFailed
+
+    suspend fun getDetailedResponse(token: String, remoteIp: String = ""): Either<PreCheckFailed, V3ResponseDetail> {
+        if (!likelyValidRecaptchaParameter(token))
+            return Either.left(PreCheckFailed)
+
+        val response = transact(token, remoteIp)
+        val basicInterpretation = interpretResponseBody(response)
+        val score = response[SCORE_ATTRIBUTE]
+            .expectNumber(SCORE_ATTRIBUTE)
+            .asDouble
+        val action = response["action"]
+            .expectString("action")
+        val errorCode = mapErrorCode(basicInterpretation.errorCodes)
+        return Either.right(
+            V3ResponseDetail(
+                basicInterpretation.success,
+                score,
+                action,
+                errorCode,
+                basicInterpretation.host
+            )
+        )
+    }
+
+    private fun mapErrorCode(errorCodes: List<String>) =
+        errorCodes.firstNotNullOfOrNull {
+            when (it) {
+                INVALID_TOKEN_KEY -> V3ErrorCode.InvalidToken
+                TIMEOUT_OR_DUPLICATE_KEY -> V3ErrorCode.TimeOrDuplicatedToken
+                else -> null
+            }
+        }
+
+    override suspend fun verify(token: String, remoteIp: String): Boolean =
+        getVerifyScore(token) > actionToScoreThreshold("")
 
 }
