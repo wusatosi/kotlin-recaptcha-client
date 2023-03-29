@@ -41,12 +41,15 @@ internal abstract class RecaptchaClientBase(
         if (status.value !in 200..299)
             throw UnexpectedError("Invalid respond status code: ${status.value}, ${status.description}", null)
 
-        return try {
+        var parseError: JsonParseException? = null
+        try {
             val body = JsonParser.parseString(response.bodyAsText())
-            body.asJsonObject!!
+            if (body.isJsonObject)
+                return body.asJsonObject
         } catch (error: JsonParseException) {
-            throw UnexpectedJsonStructure("The server did not respond with a valid Json object", error)
+            parseError = error
         }
+        throw UnexpectedJsonStructure("The server did not respond with a valid Json object", parseError)
     }
 
     override fun close() = client.close()
