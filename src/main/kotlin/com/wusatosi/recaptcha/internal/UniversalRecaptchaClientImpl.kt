@@ -11,26 +11,16 @@ internal class UniversalRecaptchaClientImpl(
 ) : RecaptchaClientBase(secretKey, useRecaptchaDotNetEndPoint, engine), RecaptchaClient {
 
     override suspend fun verify(token: String): Boolean {
-        if (!checkURLCompatibility(token))
+        if (!likelyValidRecaptchaParameter(token))
             return false
 
-        val obj = transact(token)
+        val response = transact(token)
+        val (isSuccess, _) = interpretResponseBody(response)
 
-        val isSuccess = obj["success"]
-            .expectBoolean("success")
-
-        if (!isSuccess) {
-            obj["error-codes"]?.let {
-                checkSiteSecretError(it.expectStringArray("error-codes"))
-            }
-            return false
-        }
-
-        val scoreIndicate = obj["score"] ?: return isSuccess
-
-        val score = scoreIndicate
-            .expectNumber("score")
-            .asDouble
+        val score = response["score"]
+            ?.expectNumber("score")
+            ?.asDouble
+            ?: return isSuccess
 
         return score > defaultScoreThreshold
     }

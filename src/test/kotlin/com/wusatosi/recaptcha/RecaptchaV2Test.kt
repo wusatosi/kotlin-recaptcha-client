@@ -10,12 +10,12 @@ import org.junit.jupiter.api.assertThrows
 
 class RecaptchaV2Test {
 
-    private suspend fun simulate(jsonStr: String): Boolean {
+    private suspend fun simulate(jsonStr: String, token: String = "token"): Boolean {
         val engine = MockEngine {
             respondOk(jsonStr)
         }
         val client = RecaptchaV2Client.create("site", engine = engine)
-        return client.use { it.verify("token") }
+        return client.use { it.verify(token) }
     }
 
     @Test
@@ -45,27 +45,29 @@ class RecaptchaV2Test {
         }
 
     @Test
-    fun emptyErrorCodes() =
+    fun failure_invalidTokenByPreCheck() =
         runBlocking {
-            @Language("JSON") val success = """
-                {
-                  "success": true,
-                  "challenge_ts": "2023-03-28T22:10:10Z",
-                  "hostname": "wusatosi.com",
-                  "error-codes": []
-                }
-            """.trimIndent()
-            assert(simulate(success))
+            run {
+                @Language("JSON") val jsonStr = """
+                    {
+                      "success": true,
+                      "challenge_ts": "2023-03-28T22:10:10Z",
+                      "hostname": "wusatosi.com"
+                    }
+                """.trimIndent()
+                assert(!simulate(jsonStr, "阿"))
+            }
 
-            @Language("JSON") val failure = """
-                {
-                  "success": false,
-                  "challenge_ts": "2023-03-28T22:10:10Z",
-                  "hostname": "wusatosi.com",
-                  "error-codes": []
-                }
-            """.trimIndent()
-            assert(!simulate(failure))
+            run {
+                @Language("JSON") val jsonStr = """
+                    {
+                      "success": true,
+                      "challenge_ts": "2023-03-28T22:10:10Z",
+                      "hostname": "wusatosi.com"
+                    }
+                """.trimIndent()
+                assert(!simulate(jsonStr, ""))
+            }
         }
 
     @Test
@@ -100,30 +102,6 @@ class RecaptchaV2Test {
                 }
             """.trimIndent()
             assertThrows<InvalidSiteKeyException> { simulate(threeError) }
-
-            Unit
-        }
-
-    @Test
-    fun malformed() =
-        runBlocking {
-            @Language("JSON") val missingAttribute = """
-                {}
-            """.trimIndent()
-            assertThrows<UnexpectedJsonStructure> { simulate(missingAttribute) }
-
-            @Language("JSON") val typeMismatch = """
-                {"success":  ":("}
-            """.trimIndent()
-            assertThrows<UnexpectedJsonStructure> { simulate(typeMismatch) }
-
-            @Language("JSON") val errorCodeMistype = """
-                {
-                  "success": "false",
-                  "error-codes": [true]
-                }
-            """.trimIndent()
-            assertThrows<UnexpectedJsonStructure> { simulate(errorCodeMistype) }
 
             Unit
         }

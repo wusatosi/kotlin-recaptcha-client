@@ -1,7 +1,10 @@
 package com.wusatosi.recaptcha.internal
 
+import com.wusatosi.recaptcha.UnexpectedError
 import com.wusatosi.recaptcha.v3.RecaptchaV3Client
 import io.ktor.client.engine.*
+
+private const val SCORE_ATTRIBUTE = "score"
 
 internal class RecaptchaV3ClientImpl(
     secretKey: String,
@@ -12,27 +15,32 @@ internal class RecaptchaV3ClientImpl(
 
     override suspend fun getVerifyScore(
         token: String,
-        invalidate_token_score: Double,
-        timeout_or_duplicate_score: Double
+        invalidateTokenScore: Double,
+        timeoutOrDuplicateScore: Double
     ): Double {
-//        There is no way to validate it here,
-//        So check if it only contains characters
-//        that is valid for a URL string
-        if (!checkURLCompatibility(token)) return invalidate_token_score
+        if (!likelyValidRecaptchaParameter(token)) return invalidateTokenScore
 
-        val obj = transact(token)
-
-        val isSuccess = obj["success"]
-            .expectBoolean("success")
-
-        return if (!isSuccess) {
-            val errorCodes = obj["error-codes"].expectStringArray("error-codes")
-            mapErrorCodes(errorCodes, invalidate_token_score, timeout_or_duplicate_score)
-        } else {
-            obj["score"]
-                .expectNumber("score")
+        val response = transact(token)
+        val (isSuccess, errorCodes) = interpretResponseBody(response)
+        return if (isSuccess) {
+            response[SCORE_ATTRIBUTE]
+                .expectNumber(SCORE_ATTRIBUTE)
                 .asDouble
+        } else {
+            mapErrorCodes(errorCodes, invalidateTokenScore, timeoutOrDuplicateScore)
         }
+    }
+
+    private fun mapErrorCodes(
+        errorCodes: List<String>,
+        invalidTokenScore: Double,
+        timeoutOrDuplicateTokenScore: Double
+    ): Double {
+        if (INVALID_TOKEN_KEY in errorCodes)
+            return invalidTokenScore
+        if (TIMEOUT_OR_DUPLICATE_KEY in errorCodes)
+            return timeoutOrDuplicateTokenScore
+        throw UnexpectedError("unexpected error codes: $errorCodes")
     }
 
     override suspend fun verify(token: String): Boolean = getVerifyScore(token) > defaultScoreThreshold

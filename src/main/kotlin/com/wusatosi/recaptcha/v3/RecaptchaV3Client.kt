@@ -2,17 +2,20 @@ package com.wusatosi.recaptcha.v3
 
 import com.wusatosi.recaptcha.InvalidSiteKeyException
 import com.wusatosi.recaptcha.RecaptchaClient
+import com.wusatosi.recaptcha.RecaptchaError
 import com.wusatosi.recaptcha.internal.RecaptchaV3ClientImpl
-import com.wusatosi.recaptcha.internal.checkURLCompatibility
+import com.wusatosi.recaptcha.internal.likelyValidRecaptchaParameter
 import io.ktor.client.engine.*
 import io.ktor.client.engine.cio.*
+import kotlin.jvm.Throws
 
 interface RecaptchaV3Client : RecaptchaClient {
 
+    @Throws(RecaptchaError::class)
     suspend fun getVerifyScore(
         token: String,
-        invalidate_token_score: Double = -1.0,
-        timeout_or_duplicate_score: Double = -2.0
+        invalidateTokenScore: Double = -1.0,
+        timeoutOrDuplicateScore: Double = -2.0
     ): Double
 
     companion object {
@@ -22,7 +25,7 @@ interface RecaptchaV3Client : RecaptchaClient {
             useRecaptchaDotNetEndPoint: Boolean = false,
             engine: HttpClientEngine = CIO.create()
         ): RecaptchaV3Client {
-            if (!checkURLCompatibility(secretKey))
+            if (!likelyValidRecaptchaParameter(secretKey))
                 throw InvalidSiteKeyException
             return RecaptchaV3ClientImpl(
                 secretKey,

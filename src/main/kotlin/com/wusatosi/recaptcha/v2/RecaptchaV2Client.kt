@@ -3,7 +3,7 @@ package com.wusatosi.recaptcha.v2
 import com.wusatosi.recaptcha.InvalidSiteKeyException
 import com.wusatosi.recaptcha.RecaptchaClient
 import com.wusatosi.recaptcha.internal.RecaptchaV2ClientImpl
-import com.wusatosi.recaptcha.internal.checkURLCompatibility
+import com.wusatosi.recaptcha.internal.likelyValidRecaptchaParameter
 import io.ktor.client.engine.*
 import io.ktor.client.engine.cio.*
 
@@ -15,7 +15,7 @@ interface RecaptchaV2Client : RecaptchaClient {
             useRecaptchaDotNetEndPoint: Boolean = false,
             engine: HttpClientEngine = CIO.create()
         ): RecaptchaV2Client {
-            if (!checkURLCompatibility(siteKey))
+            if (!likelyValidRecaptchaParameter(siteKey))
                 throw InvalidSiteKeyException
             return RecaptchaV2ClientImpl(
                 siteKey,

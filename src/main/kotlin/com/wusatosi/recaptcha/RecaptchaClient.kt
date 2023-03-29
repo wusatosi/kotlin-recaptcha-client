@@ -1,7 +1,7 @@
 package com.wusatosi.recaptcha
 
 import com.wusatosi.recaptcha.internal.UniversalRecaptchaClientImpl
-import com.wusatosi.recaptcha.internal.checkURLCompatibility
+import com.wusatosi.recaptcha.internal.likelyValidRecaptchaParameter
 import io.ktor.client.*
 import io.ktor.client.engine.*
 import io.ktor.client.engine.cio.*
@@ -20,7 +20,7 @@ interface RecaptchaClient : Closeable {
             useRecaptchaDotNetEndPoint: Boolean = false,
             engine: HttpClientEngine = CIO.create()
         ): RecaptchaClient {
-            if (!checkURLCompatibility(secretKey))
+            if (!likelyValidRecaptchaParameter(secretKey))
                 throw InvalidSiteKeyException
 
             return UniversalRecaptchaClientImpl(

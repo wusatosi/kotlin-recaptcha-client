@@ -2,48 +2,15 @@ package com.wusatosi.recaptcha.internal
 
 import com.google.gson.JsonElement
 import com.google.gson.JsonPrimitive
-import com.wusatosi.recaptcha.InvalidSiteKeyException
-import com.wusatosi.recaptcha.UnexpectedError
 import com.wusatosi.recaptcha.UnexpectedJsonStructure
 import java.util.regex.Pattern
 
 private val pattern = Pattern.compile("^[-a-zA-Z0-9+&@#/%?=~_!:,.;]*[-a-zA-Z0-9+&@#/%=~_]")
-internal fun checkURLCompatibility(target: String): Boolean = pattern.matcher(target).matches()
 
-//  Error code	             Description
-//  missing-input-secret	 The secret parameter is missing.                        [x]
-//  invalid-input-secret	 The secret parameter is invalid or malformed.           [1]
-//  missing-input-response	 The response parameter is missing.                      [x]
-//  invalid-input-response	 The response parameter is invalid or malformed.         [2]
-//  bad-request	             The request is invalid or malformed.                    [x]
-//  timeout-or-duplicate     Timeout... (didn't include in the v3 documentation)     [3]
+// There's no way to validate if a site secret/ token is valid,
+// the only thing we know is that if it's not URL compatible, it's not a valid token
+internal fun likelyValidRecaptchaParameter(target: String): Boolean = pattern.matcher(target).matches()
 
-//  By severity, Invalid site secret > Invalid token (input response) > Timeout or duplicate.
-//  there's something wrong with this client.
-//  We don't need to check missing-xxx, or bad-request, if we get those error codes,
-
-private const val INVALID_SITE_SECRET = "invalid-input-secret"
-
-internal fun checkSiteSecretError(errorCodes: List<String>) {
-    if (INVALID_SITE_SECRET in errorCodes)
-        throw InvalidSiteKeyException
-}
-
-private const val INVALID_TOKEN = "invalid-input-response"
-private const val TIMEOUT_OR_DUPLICATE = "timeout-or-duplicate"
-
-internal fun mapErrorCodes(
-    errorCodes: List<String>,
-    invalidTokenScore: Double,
-    timeoutOrDuplicateTokenScore: Double
-): Double {
-    checkSiteSecretError(errorCodes)
-    if (INVALID_TOKEN in errorCodes)
-        return invalidTokenScore
-    if (TIMEOUT_OR_DUPLICATE in errorCodes)
-        return timeoutOrDuplicateTokenScore
-    throw UnexpectedError("unexpected error codes: $errorCodes")
-}
 
 internal fun JsonElement?.expectStringArray(attributeName: String): List<String> {
     this ?: throwNull(attributeName)

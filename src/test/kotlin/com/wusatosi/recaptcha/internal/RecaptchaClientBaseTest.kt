@@ -2,6 +2,7 @@ package com.wusatosi.recaptcha.internal
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser.parseString
+import com.wusatosi.recaptcha.InvalidSiteKeyException
 import com.wusatosi.recaptcha.RecaptchaIOError
 import com.wusatosi.recaptcha.UnexpectedError
 import com.wusatosi.recaptcha.UnexpectedJsonStructure
@@ -9,6 +10,7 @@ import io.ktor.client.engine.*
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
+import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -16,7 +18,7 @@ import java.io.IOException
 
 class RecaptchaClientBaseTest {
 
-    private suspend fun simulate(
+    private suspend fun simulateVerify(
         engine: HttpClientEngine,
         siteKey: String = "key",
         token: String = "token",
@@ -40,6 +42,20 @@ class RecaptchaClientBaseTest {
         return result
     }
 
+    private fun simulateInterpretBody(body: String): Pair<Boolean, List<String>> {
+        class Subject : RecaptchaClientBase("", false, MockEngine { respondOk() }) {
+            override suspend fun verify(token: String): Boolean {
+                return true
+            }
+
+            fun exposeInternal(payload: JsonObject): Pair<Boolean, List<String>> {
+                return this.interpretResponseBody(payload)
+            }
+        }
+
+        return Subject().exposeInternal(parseString(body).asJsonObject)
+    }
+
 
     @Test
     fun properParameters() =
@@ -55,7 +71,7 @@ class RecaptchaClientBaseTest {
                 respondOk("{}")
             }
 
-            simulate(mockEngine, siteKey, token)
+            simulateVerify(mockEngine, siteKey, token)
         }
 
     @Test
@@ -66,7 +82,7 @@ class RecaptchaClientBaseTest {
         val mockEngine = MockEngine {
             respondOk(exampleReturn)
         }
-        assertEquals(parseString(exampleReturn), simulate(mockEngine))
+        assertEquals(parseString(exampleReturn), simulateVerify(mockEngine))
     }
 
     @Test
@@ -76,7 +92,7 @@ class RecaptchaClientBaseTest {
                 assertEquals(it.url.host, "www.recaptcha.net")
                 respondOk("{}")
             }
-            simulate(mockEngine, useRecaptchaDotNetEndPoint = true)
+            simulateVerify(mockEngine, useRecaptchaDotNetEndPoint = true)
         }
 
     @Test
@@ -85,7 +101,7 @@ class RecaptchaClientBaseTest {
             val mockEngine = MockEngine {
                 throw IOException("boom!")
             }
-            assertThrows<RecaptchaIOError> { simulate(mockEngine) }
+            assertThrows<RecaptchaIOError> { simulateVerify(mockEngine) }
         }
 
     @Test
@@ -94,7 +110,7 @@ class RecaptchaClientBaseTest {
             val mockEngine = MockEngine {
                 respondBadRequest()
             }
-            assertThrows<UnexpectedError> { simulate(mockEngine) }
+            assertThrows<UnexpectedError> { simulateVerify(mockEngine) }
         }
 
     @Test
@@ -103,7 +119,7 @@ class RecaptchaClientBaseTest {
             val mockEngine = MockEngine {
                 respondError(HttpStatusCode.InternalServerError)
             }
-            assertThrows<UnexpectedError> { simulate(mockEngine) }
+            assertThrows<UnexpectedError> { simulateVerify(mockEngine) }
         }
 
     @Test
@@ -112,7 +128,7 @@ class RecaptchaClientBaseTest {
             val mockEngine = MockEngine {
                 respondOk("{abcdefg")
             }
-            assertThrows<UnexpectedJsonStructure> { simulate(mockEngine) }
+            assertThrows<UnexpectedJsonStructure> { simulateVerify(mockEngine) }
         }
 
     @Test
@@ -121,7 +137,115 @@ class RecaptchaClientBaseTest {
             val mockEngine = MockEngine {
                 respondOk("abcdefg")
             }
-            assertThrows<UnexpectedJsonStructure> { simulate(mockEngine) }
+            assertThrows<UnexpectedJsonStructure> { simulateVerify(mockEngine) }
+        }
+
+    @Test
+    fun interpretSuccessBody() = runBlocking {
+        @Language("JSON") val jsonStr = """
+                {
+                  "success": true,
+                  "hostname": "wusatosi.com"
+                }
+            """.trimIndent()
+        val (success, errorCodes) = simulateInterpretBody(jsonStr)
+        assert(success)
+        assertEquals(listOf<String>(), errorCodes)
+    }
+
+    @Test
+    fun interpretFailureBody() = runBlocking {
+        @Language("JSON") val jsonStr = """
+                {
+                  "success": false,
+                  "hostname": "wusatosi.com"
+                }
+            """.trimIndent()
+        val (success, errorCodes) = simulateInterpretBody(jsonStr)
+        assert(!success)
+        assertEquals(listOf<String>(), errorCodes)
+    }
+
+    @Test
+    fun interpretFailureBody_EmptyErrorCode() = runBlocking {
+        run {
+            @Language("JSON") val jsonStr = """
+                {
+                  "success": false,
+                  "error-codes": []
+                }
+            """.trimIndent()
+            val (success, errorCodes) = simulateInterpretBody(jsonStr)
+            assert(!success)
+            assertEquals(listOf<String>(), errorCodes)
+        }
+
+        run {
+            @Language("JSON") val jsonStr = """
+                {
+                  "success": true,
+                  "error-codes": []
+                }
+            """.trimIndent()
+            val (success, errorCodes) = simulateInterpretBody(jsonStr)
+            assert(success)
+            assertEquals(listOf<String>(), errorCodes)
+        }
+    }
+
+
+    @Test
+    fun interpretFailureBody_malformed() =
+        runBlocking {
+            @Language("JSON") val missingAttribute = """
+                {}
+            """.trimIndent()
+            assertThrows<UnexpectedJsonStructure> { simulateInterpretBody(missingAttribute) }
+
+            @Language("JSON") val typeMismatch = """
+                {"success":  ":("}
+            """.trimIndent()
+            assertThrows<UnexpectedJsonStructure> { simulateInterpretBody(typeMismatch) }
+
+            @Language("JSON") val errorCodeMistype = """
+                {
+                  "success": "false",
+                  "error-codes": [true]
+                }
+            """.trimIndent()
+            assertThrows<UnexpectedJsonStructure> { simulateInterpretBody(errorCodeMistype) }
+
+            Unit
+        }
+
+    @Test
+    fun interpretFailureBody_invalidSiteSecret() =
+        runBlocking {
+            @Language("JSON") val singleError = """
+                {
+                  "success": false,
+                  "error-codes": ["invalid-input-secret"]
+                }
+            """.trimIndent()
+            assertThrows<InvalidSiteKeyException> { simulateInterpretBody(singleError) }
+
+            @Language("JSON") val twoError = """
+                {
+                  "success": false,
+                  "error-codes": ["invalid-input-response", "invalid-input-secret"]
+                }
+            """.trimIndent()
+            assertThrows<InvalidSiteKeyException> { simulateInterpretBody(twoError) }
+
+            @Language("JSON") val threeError = """
+                {
+                  "success": false,
+                  "error-codes": ["invalid-input-response", "invalid-input-secret", "timeout-or-duplicate"]
+                }
+            """.trimIndent()
+            assertThrows<InvalidSiteKeyException> { simulateInterpretBody(threeError) }
+
+            Unit
         }
 
 }
