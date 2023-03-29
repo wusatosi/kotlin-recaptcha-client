@@ -80,7 +80,7 @@ internal fun JsonPrimitive.expectBoolean(attributeName: String): Boolean {
     return this.asBoolean
 }
 
-internal fun JsonElement.expectBoolean(attributeName: String) = this
+internal fun JsonElement?.expectBoolean(attributeName: String) = this
     .expectPrimitive(attributeName)
     .expectBoolean(attributeName)
 
