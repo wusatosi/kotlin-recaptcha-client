@@ -21,7 +21,7 @@ internal class UniversalRecaptchaClientImpl(
 
         if (!isSuccess) {
             obj["error-codes"]?.let {
-                checkErrorCodes(it.expectArray("error-codes"))
+                checkSiteSecretError(it.expectStringArray("error-codes"))
             }
             return false
         }

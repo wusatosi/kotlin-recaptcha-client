@@ -11,7 +11,7 @@ object InvalidSiteKeyException : RecaptchaError("site key is invalid", null)
 
 class UnexpectedError internal constructor(
     message: String,
-    cause: Throwable?
+    cause: Throwable? = null
 ) : RecaptchaError(message, cause)
 
 class UnexpectedJsonStructure internal constructor(

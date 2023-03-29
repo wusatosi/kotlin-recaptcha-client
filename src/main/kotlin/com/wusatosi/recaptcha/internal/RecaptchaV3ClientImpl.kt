@@ -26,8 +26,8 @@ internal class RecaptchaV3ClientImpl(
             .expectBoolean("success")
 
         return if (!isSuccess) {
-            val errorCodes = obj["error-codes"].expectArray("error-codes")
-            checkErrorCodes(errorCodes, invalidate_token_score, timeout_or_duplicate_score)
+            val errorCodes = obj["error-codes"].expectStringArray("error-codes")
+            mapErrorCodes(errorCodes, invalidate_token_score, timeout_or_duplicate_score)
         } else {
             obj["score"]
                 .expectNumber("score")

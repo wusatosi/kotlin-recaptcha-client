@@ -1,51 +1,57 @@
 package com.wusatosi.recaptcha.internal
 
-import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonPrimitive
 import com.wusatosi.recaptcha.InvalidSiteKeyException
+import com.wusatosi.recaptcha.UnexpectedError
 import com.wusatosi.recaptcha.UnexpectedJsonStructure
 import java.util.regex.Pattern
 
 private val pattern = Pattern.compile("^[-a-zA-Z0-9+&@#/%?=~_!:,.;]*[-a-zA-Z0-9+&@#/%=~_]")
 internal fun checkURLCompatibility(target: String): Boolean = pattern.matcher(target).matches()
 
-internal fun checkErrorCodes(
-    errorCodes: JsonArray,
-    invalidate_token_score: Double = 0.0,
-    timeout_or_duplicate_score: Double = 0.0
-): Double {
-    for (errorCode in errorCodes) {
-//                Error code	            Description
-//                missing-input-secret	    The secret parameter is missing.
-//                invalid-input-secret	    The secret parameter is invalid or malformed.
-//                missing-input-response	The response parameter is missing.
-//                invalid-input-response	The response parameter is invalid or malformed.
-//                bad-request	            The request is invalid or malformed.
-//                timeout-or-duplicate      Timeout... (didn't include in the v3 documentation)
-        when (val string = errorCode.expectString("error-codes")) {
-            "invalid-input-secret" ->
-                throw InvalidSiteKeyException
+//  Error code	             Description
+//  missing-input-secret	 The secret parameter is missing.                        [x]
+//  invalid-input-secret	 The secret parameter is invalid or malformed.           [1]
+//  missing-input-response	 The response parameter is missing.                      [x]
+//  invalid-input-response	 The response parameter is invalid or malformed.         [2]
+//  bad-request	             The request is invalid or malformed.                    [x]
+//  timeout-or-duplicate     Timeout... (didn't include in the v3 documentation)     [3]
 
-            "invalid-input-response" ->
-                return invalidate_token_score
+//  By severity, Invalid site secret > Invalid token (input response) > Timeout or duplicate.
+//  there's something wrong with this client.
+//  We don't need to check missing-xxx, or bad-request, if we get those error codes,
 
-            "timeout-or-duplicate" ->
-                return timeout_or_duplicate_score
+private const val INVALID_SITE_SECRET = "invalid-input-secret"
 
-            else -> UnexpectedJsonStructure("unexpected error code: $string")
-        }
-    }
-    throw UnexpectedJsonStructure("empty error code")
+internal fun checkSiteSecretError(errorCodes: List<String>) {
+    if (INVALID_SITE_SECRET in errorCodes)
+        throw InvalidSiteKeyException
 }
 
-internal fun JsonElement?.expectArray(attributeName: String): JsonArray {
+private const val INVALID_TOKEN = "invalid-input-response"
+private const val TIMEOUT_OR_DUPLICATE = "timeout-or-duplicate"
+
+internal fun mapErrorCodes(
+    errorCodes: List<String>,
+    invalidTokenScore: Double,
+    timeoutOrDuplicateTokenScore: Double
+): Double {
+    checkSiteSecretError(errorCodes)
+    if (INVALID_TOKEN in errorCodes)
+        return invalidTokenScore
+    if (TIMEOUT_OR_DUPLICATE in errorCodes)
+        return timeoutOrDuplicateTokenScore
+    throw UnexpectedError("unexpected error codes: $errorCodes")
+}
+
+internal fun JsonElement?.expectStringArray(attributeName: String): List<String> {
     this ?: throwNull(attributeName)
     if (!this.isJsonArray)
         throw UnexpectedJsonStructure(
             "$attributeName attribute is not an array"
         )
-    return this.asJsonArray
+    return this.asJsonArray.map { it.expectString(attributeName) }
 }
 
 internal fun JsonElement?.expectPrimitive(attributeName: String): JsonPrimitive {

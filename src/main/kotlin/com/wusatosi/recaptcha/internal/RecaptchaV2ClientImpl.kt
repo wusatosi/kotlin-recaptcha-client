@@ -17,13 +17,14 @@ internal class RecaptchaV2ClientImpl(
             return false
 
         val obj = transact(token)
-
         val isSuccess = obj["success"]
             .expectBoolean("success")
 
         if (!isSuccess)
             obj["error-codes"]?.let {
-                checkErrorCodes(it.expectArray("error-codes"))
+//                 Check if we need to throw InvalidSiteKeyException,
+//                 we don't care if the token is invalid.
+                checkSiteSecretError(it.expectStringArray("error-codes"))
             }
 
         return isSuccess
