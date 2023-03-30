@@ -18,26 +18,6 @@ internal class RecaptchaV3ClientImpl(
 
     private val actionToScoreThreshold = config.actionToScoreThreshold
 
-    override suspend fun getVerifyScore(
-        token: String,
-        invalidateTokenScore: Double,
-        timeoutOrDuplicateScore: Double,
-        remoteIp: String
-    ): Double {
-        return when (val either = getDetailedResponse(token, remoteIp)) {
-            is Left -> {
-                when (either.left) {
-                    InvalidToken -> invalidateTokenScore
-                    TimeOrDuplicatedToken -> timeoutOrDuplicateScore
-                }
-            }
-            is Right -> {
-                val (detail, _) = either.right
-                detail.score
-            }
-        }
-    }
-
     override suspend fun getDetailedResponse(
         token: String,
         remoteIp: String
@@ -57,7 +37,7 @@ internal class RecaptchaV3ClientImpl(
                 val action = extractAction(response)
 
                 val threshold = generateThreshold(action)
-                val decision = V3Decision(hostMatch && threshold < score, hostMatch, threshold)
+                val decision = V3Decision(hostMatch && (threshold < score), hostMatch, threshold)
 
                 Either.right(
                     V3ResponseDetail(
@@ -78,9 +58,7 @@ internal class RecaptchaV3ClientImpl(
         .expectNumber(SCORE_ATTRIBUTE)
         .asDouble
 
-    private fun generateThreshold(action: String): Double {
-        return actionToScoreThreshold(action)
-    }
+    private fun generateThreshold(action: String): Double = actionToScoreThreshold(action)
 
     override suspend fun verify(token: String, remoteIp: String): Boolean {
         return when (val interpretation = getDetailedResponse(token, remoteIp)) {
