@@ -3,20 +3,17 @@ package com.wusatosi.recaptcha.v3
 import com.wusatosi.recaptcha.*
 import com.wusatosi.recaptcha.internal.RecaptchaV3ClientImpl
 import com.wusatosi.recaptcha.internal.likelyValidRecaptchaParameter
-import io.ktor.client.engine.*
-import io.ktor.client.engine.cio.*
-import kotlin.jvm.Throws
 
 interface RecaptchaV3Client : RecaptchaClient {
 
-    class V3ResponseDetail(
+    data class V3ResponseDetail(
         val success: Boolean,
         val host: String,
         val score: Double,
         val action: String,
     )
 
-    class V3Decision(
+    data class V3Decision(
         val decision: Boolean,
         val hostMatch: Boolean,
         val suggestedThreshold: Double

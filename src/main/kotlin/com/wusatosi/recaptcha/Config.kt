@@ -2,7 +2,6 @@ package com.wusatosi.recaptcha
 
 import io.ktor.client.engine.*
 import io.ktor.client.engine.cio.*
-import java.lang.IllegalStateException
 
 sealed class RecaptchaConfig {
     var engine: HttpClientEngine = CIO.create()
@@ -28,15 +27,12 @@ class RecaptchaV3Config : RecaptchaConfig() {
     internal var actionToScoreThreshold: (String) -> Double = { scoreThreshold }
     var scoreThreshold = 0.5
 
-    fun acceptAllActions() {
-        actionToScoreThreshold = { scoreThreshold }
-    }
-
     fun limitedActions(vararg action: String) {
         actionToScoreThreshold = {
             if (it in action)
                 scoreThreshold
-            0.0
+            else
+                5.0
         }
     }
 

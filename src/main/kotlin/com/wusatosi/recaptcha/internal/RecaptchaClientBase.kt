@@ -111,8 +111,9 @@ internal abstract class RecaptchaClientBase(
             return Either.left(errorCode)
 
         val hostName = body[HOSTNAME_ATTRIBUTE]
-            .expectString(HOSTNAME_ATTRIBUTE)
-        val matchedHost = acceptableHosts.isEmpty() || (hostName.isNotEmpty() && hostName in acceptableHosts)
+            ?.expectString(HOSTNAME_ATTRIBUTE)
+            ?: ""
+        val matchedHost = hostName.isNotEmpty() && (acceptableHosts.isEmpty() || (hostName in acceptableHosts))
         return Either.right(BasicResponseBody(success, matchedHost, hostName))
     }
 

@@ -3,7 +3,6 @@ package com.wusatosi.recaptcha.internal
 import com.google.gson.JsonObject
 import com.wusatosi.recaptcha.*
 import com.wusatosi.recaptcha.ErrorCode.InvalidToken
-import com.wusatosi.recaptcha.ErrorCode.TimeOrDuplicatedToken
 import com.wusatosi.recaptcha.v3.RecaptchaV3Client
 import com.wusatosi.recaptcha.v3.RecaptchaV3Client.V3Decision
 import com.wusatosi.recaptcha.v3.RecaptchaV3Client.V3ResponseDetail
@@ -37,7 +36,7 @@ internal class RecaptchaV3ClientImpl(
                 val action = extractAction(response)
 
                 val threshold = generateThreshold(action)
-                val decision = V3Decision(hostMatch && (threshold < score), hostMatch, threshold)
+                val decision = V3Decision(hostMatch && (score > threshold), hostMatch, threshold)
 
                 Either.right(
                     V3ResponseDetail(
@@ -52,11 +51,13 @@ internal class RecaptchaV3ClientImpl(
     }
 
     private fun extractAction(response: JsonObject) = response[ACTION_ATTRIBUTE]
-        .expectString(ACTION_ATTRIBUTE)
+        ?.expectString(ACTION_ATTRIBUTE)
+        ?: ""
 
     private fun extractScore(body: JsonObject) = body[SCORE_ATTRIBUTE]
-        .expectNumber(SCORE_ATTRIBUTE)
-        .asDouble
+        ?.expectNumber(SCORE_ATTRIBUTE)
+        ?.asDouble
+        ?: 0.0
 
     private fun generateThreshold(action: String): Double = actionToScoreThreshold(action)
 
