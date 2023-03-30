@@ -44,6 +44,22 @@ class RecaptchaV2Test {
     }
 
     @Test
+    fun testCreation() = runBlocking {
+        RecaptchaV2Client.create("site")
+        RecaptchaV2Client.create("site") {}
+
+        Unit
+    }
+
+    @Test
+    fun shouldNotInitialize_siteKeyPreCheck() = runBlocking {
+        assertThrows<InvalidSiteKeyException> { RecaptchaV2Client.create("阿") }
+        assertThrows<InvalidSiteKeyException> { RecaptchaV2Client.create("") }
+
+        Unit
+    }
+
+    @Test
     fun success() = runBlocking {
         run {
             @Language("JSON") val jsonStr = """
