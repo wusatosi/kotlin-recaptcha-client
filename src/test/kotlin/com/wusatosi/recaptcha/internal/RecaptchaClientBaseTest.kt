@@ -17,23 +17,22 @@ import java.net.URLEncoder
 
 class RecaptchaClientBaseTest {
 
-    private suspend fun simulateVerify(
+    private suspend fun simulateTransact(
         engine: HttpClientEngine,
         siteKey: String = "key",
         token: String = "token",
-        useRecaptchaDotNetEndPoint: Boolean = false,
-        remoteIp: String = ""
+        useAlternativeDomain: Boolean = false,
+        remoteIp: String = "",
     ): JsonObject? {
         var result: JsonObject? = null
 
-        val config = RecaptchaV2Config()
-        config.useAlternativeDomain = useRecaptchaDotNetEndPoint
+        val config = BaseConfig()
+        config.useAlternativeDomain = useAlternativeDomain
         config.engine = engine
 
         class Subject(
             siteKey: String,
-        ) :
-            RecaptchaClientBase(siteKey, config) {
+        ) : RecaptchaClientBase(siteKey, config) {
             override suspend fun verify(token: String, remoteIp: String): Boolean {
                 result = transact(token, remoteIp)
                 return true
@@ -44,17 +43,20 @@ class RecaptchaClientBaseTest {
         return result
     }
 
-    private fun simulateInterpretBody(body: String): BasicResponseBody {
-        val config = RecaptchaV2Config()
+    private fun simulateInterpretBody(
+        body: String,
+        block: BaseConfig.() -> Unit = {}
+    ): Either<ErrorCode, BasicResponseBody> {
+        val config = BaseConfig()
         config.engine = MockEngine { respondOk() }
+        block(config)
         class Subject : RecaptchaClientBase("", config) {
             override suspend fun verify(token: String, remoteIp: String): Boolean {
                 return true
             }
 
-            fun exposeInternal(payload: JsonObject): BasicResponseBody {
-                // TODO: More tests
-                return this.interpretResponseBody(payload).right
+            fun exposeInternal(payload: JsonObject): Either<ErrorCode, BasicResponseBody> {
+                return this.interpretResponseBody(payload)
             }
         }
 
@@ -63,60 +65,63 @@ class RecaptchaClientBaseTest {
 
 
     @Test
-    fun properParameters() =
-        runBlocking<Unit> {
-            val siteKey = "key"
-            val token = "token"
+    fun properParameters() = runBlocking {
+        val siteKey = "key"
+        val token = "token"
 
-            val mockEngine = MockEngine {
-                assertEquals("www.google.com", it.url.host)
-                assertEquals("/recaptcha/api/siteverify", it.url.encodedPath)
-                assertEquals("secret=$siteKey&response=$token", it.url.encodedQuery)
-                assertEquals(HttpMethod.Post, it.method)
-                respondOk("{}")
-            }
-
-            simulateVerify(mockEngine, siteKey, token)
+        val mockEngine = MockEngine {
+            assertEquals("www.google.com", it.url.host)
+            assertEquals("/recaptcha/api/siteverify", it.url.encodedPath)
+            assertEquals("secret=$siteKey&response=$token", it.url.encodedQuery)
+            assertEquals(HttpMethod.Post, it.method)
+            respondOk("{}")
         }
+
+        simulateTransact(mockEngine, siteKey, token)
+
+        Unit
+    }
 
     @Test
-    fun properParameters_withV4Ip() =
-        runBlocking<Unit> {
-            val siteKey = "key"
-            val token = "token"
-            val remoteIpV4 = "1.2.3.4"
+    fun properParameters_withV4Ip() = runBlocking {
+        val siteKey = "key"
+        val token = "token"
+        val remoteIpV4 = "1.2.3.4"
 
-            val mockEngine = MockEngine {
-                assertEquals("www.google.com", it.url.host)
-                assertEquals("/recaptcha/api/siteverify", it.url.encodedPath)
-                assertEquals("secret=$siteKey&response=$token&remoteip=$remoteIpV4", it.url.encodedQuery)
-                assertEquals(HttpMethod.Post, it.method)
-                respondOk("{}")
-            }
-
-            simulateVerify(mockEngine, siteKey, token, remoteIp = remoteIpV4)
+        val mockEngine = MockEngine {
+            assertEquals("www.google.com", it.url.host)
+            assertEquals("/recaptcha/api/siteverify", it.url.encodedPath)
+            assertEquals("secret=$siteKey&response=$token&remoteip=$remoteIpV4", it.url.encodedQuery)
+            assertEquals(HttpMethod.Post, it.method)
+            respondOk("{}")
         }
+
+        simulateTransact(mockEngine, siteKey, token, remoteIp = remoteIpV4)
+
+        Unit
+    }
 
     @Test
-    fun properParameters_withV6Ip() =
-        runBlocking<Unit> {
-            val siteKey = "key"
-            val token = "token"
-            val remoteIpV6 = "1111:2222:3333:4444:5555:6666:7777:8888"
+    fun properParameters_withV6Ip() = runBlocking {
+        val siteKey = "key"
+        val token = "token"
+        val remoteIpV6 = "1111:2222:3333:4444:5555:6666:7777:8888"
 
-            val mockEngine = MockEngine {
-                assertEquals("www.google.com", it.url.host)
-                assertEquals("/recaptcha/api/siteverify", it.url.encodedPath)
-                assertEquals(
-                    "secret=$siteKey&response=$token&remoteip=${URLEncoder.encode(remoteIpV6, "UTF-8")}",
-                    it.url.encodedQuery
-                )
-                assertEquals(HttpMethod.Post, it.method)
-                respondOk("{}")
-            }
-
-            simulateVerify(mockEngine, siteKey, token, remoteIp = remoteIpV6)
+        val mockEngine = MockEngine {
+            assertEquals("www.google.com", it.url.host)
+            assertEquals("/recaptcha/api/siteverify", it.url.encodedPath)
+            assertEquals(
+                "secret=$siteKey&response=$token&remoteip=${URLEncoder.encode(remoteIpV6, "UTF-8")}",
+                it.url.encodedQuery
+            )
+            assertEquals(HttpMethod.Post, it.method)
+            respondOk("{}")
         }
+
+        simulateTransact(mockEngine, siteKey, token, remoteIp = remoteIpV6)
+
+        Unit
+    }
 
     @Test
     fun correctParsing() = runBlocking {
@@ -126,63 +131,69 @@ class RecaptchaClientBaseTest {
         val mockEngine = MockEngine {
             respondOk(exampleReturn)
         }
-        assertEquals(parseString(exampleReturn), simulateVerify(mockEngine))
+        assertEquals(parseString(exampleReturn), simulateTransact(mockEngine))
     }
 
     @Test
-    fun switchDomain() =
-        runBlocking<Unit> {
-            val mockEngine = MockEngine {
-                assertEquals(it.url.host, "www.recaptcha.net")
-                respondOk("{}")
-            }
-            simulateVerify(mockEngine, useRecaptchaDotNetEndPoint = true)
+    fun switchDomain() = runBlocking {
+        val mockEngine = MockEngine {
+            assertEquals(it.url.host, "www.recaptcha.net")
+            respondOk("{}")
         }
+        simulateTransact(mockEngine, useAlternativeDomain = true)
+
+        Unit
+    }
 
     @Test
-    fun ioExceptionUponRequest() =
-        runBlocking<Unit> {
-            val mockEngine = MockEngine {
-                throw IOException("boom!")
-            }
-            assertThrows<RecaptchaIOError> { simulateVerify(mockEngine) }
+    fun ioExceptionUponRequest() = runBlocking {
+        val mockEngine = MockEngine {
+            throw IOException("boom!")
         }
+        assertThrows<RecaptchaIOError> { simulateTransact(mockEngine) }
+
+        Unit
+    }
 
     @Test
-    fun badStatus() =
-        runBlocking<Unit> {
-            val mockEngine = MockEngine {
-                respondBadRequest()
-            }
-            assertThrows<UnexpectedError> { simulateVerify(mockEngine) }
+    fun badStatus() = runBlocking {
+        val mockEngine = MockEngine {
+            respondBadRequest()
         }
+        assertThrows<UnexpectedError> { simulateTransact(mockEngine) }
+
+        Unit
+    }
 
     @Test
-    fun badStatus2() =
-        runBlocking<Unit> {
-            val mockEngine = MockEngine {
-                respondError(HttpStatusCode.InternalServerError)
-            }
-            assertThrows<UnexpectedError> { simulateVerify(mockEngine) }
+    fun badStatus2() = runBlocking {
+        val mockEngine = MockEngine {
+            respondError(HttpStatusCode.InternalServerError)
         }
+        assertThrows<UnexpectedError> { simulateTransact(mockEngine) }
+
+        Unit
+    }
 
     @Test
-    fun malformedResponse() =
-        runBlocking<Unit> {
-            val mockEngine = MockEngine {
-                respondOk("{abcdefg")
-            }
-            assertThrows<UnexpectedJsonStructure> { simulateVerify(mockEngine) }
+    fun malformedResponse() = runBlocking {
+        val mockEngine = MockEngine {
+            respondOk("{abcdefg")
         }
+        assertThrows<UnexpectedJsonStructure> { simulateTransact(mockEngine) }
+
+        Unit
+    }
 
     @Test
-    fun malformedResponse2() =
-        runBlocking<Unit> {
-            val mockEngine = MockEngine {
-                respondOk("abcdefg")
-            }
-            assertThrows<UnexpectedJsonStructure> { simulateVerify(mockEngine) }
+    fun malformedResponse2() = runBlocking {
+        val mockEngine = MockEngine {
+            respondOk("abcdefg")
         }
+        assertThrows<UnexpectedJsonStructure> { simulateTransact(mockEngine) }
+
+        Unit
+    }
 
     @Test
     fun interpretSuccessBody() = runBlocking {
@@ -192,8 +203,58 @@ class RecaptchaClientBaseTest {
                   "hostname": "wusatosi.com"
                 }
             """.trimIndent()
-        val (success, _, _) = simulateInterpretBody(jsonStr)
+        val either = simulateInterpretBody(jsonStr)
+        assert(either is Right)
+        val (success, _, _) = either.right
         assert(success)
+    }
+
+    @Test
+    fun interpretSuccessBody_matchingDomain() = runBlocking {
+        run {
+            @Language("JSON") val jsonStr = """
+                    {
+                      "success": true,
+                      "hostname": "wusatosi.com"
+                    }
+                """.trimIndent()
+            val either = simulateInterpretBody(jsonStr) {
+                hostList = mutableListOf("wusatosi.com")
+            }
+            assert(either is Right)
+            val (_, domainMatch, _) = either.right
+            assert(domainMatch)
+        }
+        run {
+            @Language("JSON") val jsonStr = """
+                    {
+                      "success": true,
+                      "hostname": "wusatosi.com"
+                    }
+                """.trimIndent()
+            val either = simulateInterpretBody(jsonStr) {
+                hostList = mutableListOf("wusatosi.com", "google.com")
+            }
+            assert(either is Right)
+            val (_, domainMatch, _) = either.right
+            assert(domainMatch)
+        }
+    }
+
+    @Test
+    fun interpretSuccessBody_mismatchDomain() = runBlocking {
+        @Language("JSON") val jsonStr = """
+                {
+                  "success": true,
+                  "hostname": "wusatosi.com"
+                }
+            """.trimIndent()
+        val either = simulateInterpretBody(jsonStr) {
+            hostList = mutableListOf("google.com")
+        }
+        assert(either is Right)
+        val (_, domainMatch, _) = either.right
+        assert(!domainMatch)
     }
 
     @Test
@@ -204,7 +265,9 @@ class RecaptchaClientBaseTest {
                   "hostname": "wusatosi.com"
                 }
             """.trimIndent()
-        val (success, _, _) = simulateInterpretBody(jsonStr)
+        val either = simulateInterpretBody(jsonStr)
+        assert(either is Right)
+        val (success, _, _) = either.right
         assert(!success)
     }
 
@@ -218,8 +281,10 @@ class RecaptchaClientBaseTest {
                   "error-codes": []
                 }
             """.trimIndent()
-            val (success, _, _) = simulateInterpretBody(jsonStr)
-            assert(!success)
+            val either = simulateInterpretBody(jsonStr)
+            assert(either is Right)
+            val (success, _, _) = either.right
+            assert(success)
         }
 
         run {
@@ -230,67 +295,105 @@ class RecaptchaClientBaseTest {
                   "error-codes": []
                 }
             """.trimIndent()
-            val (success, _, _) = simulateInterpretBody(jsonStr)
+            val either = simulateInterpretBody(jsonStr)
+            assert(either is Right)
+            val (success, _, _) = either.right
             assert(success)
         }
     }
 
 
     @Test
-    fun interpretFailureBody_malformed() =
-        runBlocking {
-            @Language("JSON") val missingAttribute = """
+    fun interpretFailureBody_malformed() = runBlocking {
+        @Language("JSON") val missingAttribute = """
                 {}
             """.trimIndent()
-            assertThrows<UnexpectedJsonStructure> { simulateInterpretBody(missingAttribute) }
+        assertThrows<UnexpectedJsonStructure> { simulateInterpretBody(missingAttribute) }
 
-            @Language("JSON") val typeMismatch = """
+        @Language("JSON") val typeMismatch = """
                 {"success":  ":("}
             """.trimIndent()
-            assertThrows<UnexpectedJsonStructure> { simulateInterpretBody(typeMismatch) }
+        assertThrows<UnexpectedJsonStructure> { simulateInterpretBody(typeMismatch) }
 
-            @Language("JSON") val errorCodeMistype = """
+        @Language("JSON") val errorCodeMistype = """
                 {
                   "success": "false",
                   "error-codes": [true]
                 }
             """.trimIndent()
-            assertThrows<UnexpectedJsonStructure> { simulateInterpretBody(errorCodeMistype) }
+        assertThrows<UnexpectedJsonStructure> { simulateInterpretBody(errorCodeMistype) }
 
-            Unit
-        }
+        Unit
+    }
 
     @Test
-    fun interpretFailureBody_invalidSiteSecret() =
-        runBlocking {
-            @Language("JSON") val singleError = """
+    fun interpretFailureBody_invalidSiteSecret() = runBlocking {
+        @Language("JSON") val singleError = """
                 {
                   "success": false,
-                  "hostname": "wusatosi.com",
                   "error-codes": ["invalid-input-secret"]
                 }
             """.trimIndent()
-            assertThrows<InvalidSiteKeyException> { simulateInterpretBody(singleError) }
+        assertThrows<InvalidSiteKeyException> { simulateInterpretBody(singleError) }
 
-            @Language("JSON") val twoError = """
+        @Language("JSON") val twoError = """
                 {
                   "success": false,
-                  "hostname": "wusatosi.com",
                   "error-codes": ["invalid-input-response", "invalid-input-secret"]
                 }
             """.trimIndent()
-            assertThrows<InvalidSiteKeyException> { simulateInterpretBody(twoError) }
+        assertThrows<InvalidSiteKeyException> { simulateInterpretBody(twoError) }
 
-            @Language("JSON") val threeError = """
+        @Language("JSON") val threeError = """
                 {
                   "success": false,
-                  "hostname": "wusatosi.com",
                   "error-codes": ["invalid-input-response", "invalid-input-secret", "timeout-or-duplicate"]
                 }
             """.trimIndent()
-            assertThrows<InvalidSiteKeyException> { simulateInterpretBody(threeError) }
+        assertThrows<InvalidSiteKeyException> { simulateInterpretBody(threeError) }
 
-            Unit
-        }
+        Unit
+    }
+
+    @Test
+    fun interpretErrorCodes_InvalidToken() = runBlocking {
+        @Language("JSON") val invalidToken = """
+                {
+                  "success": false,
+                  "error-codes": ["invalid-input-response"]
+                }
+            """.trimIndent()
+        val either = simulateInterpretBody(invalidToken)
+        assert(either is Left)
+        val errorCode = either.left
+        assertEquals(ErrorCode.InvalidToken, errorCode)
+    }
+
+    @Test
+    fun interpretErrorCodes_Timeout() = runBlocking {
+        @Language("JSON") val invalidToken = """
+                {
+                  "success": false,
+                  "error-codes": ["timeout-or-duplicate"]
+                }
+            """.trimIndent()
+        val either = simulateInterpretBody(invalidToken)
+        assert(either is Left)
+        val errorCode = either.left
+        assertEquals(ErrorCode.TimeOrDuplicatedToken, errorCode)
+    }
+
+    @Test
+    fun interpretErrorCodes_InvalidErrorCode() = runBlocking {
+        @Language("JSON") val invalidToken = """
+                {
+                  "success": false,
+                  "error-codes": ["boom"]
+                }
+            """.trimIndent()
+        assertThrows<UnexpectedError> { simulateInterpretBody(invalidToken) }
+
+        Unit
+    }
 
 }

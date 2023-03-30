@@ -10,6 +10,9 @@ sealed class RecaptchaConfig {
     var useAlternativeDomain: Boolean = false
 }
 
+// Internal base representation of the pure RecaptchaConfig
+internal class BaseConfig : RecaptchaConfig()
+
 class RecaptchaV2Config : RecaptchaConfig()
 
 class RecaptchaV3Config : RecaptchaConfig() {
