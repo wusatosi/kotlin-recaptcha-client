@@ -37,3 +37,9 @@ interface RecaptchaClient : Closeable {
     }
 
 }
+
+enum class ErrorCode {
+    InvalidToken,
+    TimeOrDuplicatedToken
+}
+

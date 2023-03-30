@@ -27,13 +27,14 @@ internal const val TIMEOUT_OR_DUPLICATE_KEY = "timeout-or-duplicate"
 
 private const val SUCCESS_ATTRIBUTE = "success"
 private const val ERROR_CODES_ATTRIBUTE = "error-codes"
+private const val HOSTNAME_ATTRIBUTE = "hostname"
 
 internal abstract class RecaptchaClientBase(
     private val secretKey: String,
     recaptchaConfig: RecaptchaConfig
 ) : RecaptchaClient {
 
-    private val client: HttpClient = HttpClient(recaptchaConfig.engine) {}
+    private val client = HttpClient(recaptchaConfig.engine) {}
     private val validateHost = if (!recaptchaConfig.useAlternativeDomain) DEFAULT_DOMAIN else ALTERNATE_DOMAIN
     private val acceptableHosts: List<String> = ArrayList(recaptchaConfig.hostList)
 
@@ -78,25 +79,46 @@ internal abstract class RecaptchaClientBase(
     internal data class BasicResponseBody(
         val success: Boolean,
         val matchedHost: Boolean,
-        val errorCodes: List<String>,
         val host: String
     )
 
-    protected fun interpretResponseBody(body: JsonObject): BasicResponseBody {
-        val success = body[SUCCESS_ATTRIBUTE]
-            .expectBoolean(SUCCESS_ATTRIBUTE)
+    private fun errorCodeCheck(body: JsonObject): ErrorCode? {
         val errorCodes = body[ERROR_CODES_ATTRIBUTE]
             ?.let { it.expectStringArray(ERROR_CODES_ATTRIBUTE) }
             ?: listOf()
 
+        if (errorCodes.isEmpty())
+            return null
+
         if (INVALID_SITE_SECRET_KEY in errorCodes)
             throw InvalidSiteKeyException
 
-        val hostName = body["hostname"]
-            .expectString("hostname")
-        val matchedHost = acceptableHosts.isEmpty() || hostName in acceptableHosts
+        return errorCodes.firstNotNullOfOrNull {
+            when (it) {
+                INVALID_TOKEN_KEY -> ErrorCode.InvalidToken
+                TIMEOUT_OR_DUPLICATE_KEY -> ErrorCode.TimeOrDuplicatedToken
+                else -> null
+            }
+        } ?: throw UnexpectedError("Unexpected Error code: $errorCodes")
+    }
 
-        return BasicResponseBody(success, matchedHost, errorCodes, hostName)
+    protected fun interpretResponseBody(body: JsonObject): Either<ErrorCode, BasicResponseBody> {
+        val success = body[SUCCESS_ATTRIBUTE]
+            .expectBoolean(SUCCESS_ATTRIBUTE)
+
+        val errorCode = errorCodeCheck(body)
+        // TODO: Test empty error code with failed response
+        if (errorCode != null)
+            return Either.left(errorCode)
+
+        val hostName = body[HOSTNAME_ATTRIBUTE]
+            .expectString(HOSTNAME_ATTRIBUTE)
+        // TODO: Test Empty acceptable hosts (all) and restricted
+        val matchedHost = acceptableHosts.isEmpty() || (hostName.isNotEmpty() && hostName in acceptableHosts)
+        return Either.right(BasicResponseBody(success, matchedHost, hostName))
+
+        // TODO: test first: {"success":false,"error-codes":["invalid-input-secret"]}
+        // TODO: then {"success":false,"error-codes":["invalid-input-response"]}
     }
 
     override fun close() = client.close()

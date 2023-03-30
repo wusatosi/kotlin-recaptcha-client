@@ -9,6 +9,25 @@ import kotlin.jvm.Throws
 
 interface RecaptchaV3Client : RecaptchaClient {
 
+    class V3ResponseDetail(
+        val success: Boolean,
+        val host: String,
+        val score: Double,
+        val action: String,
+    )
+
+    class V3Decision(
+        val decision: Boolean,
+        val hostMatch: Boolean,
+        val suggestedThreshold: Double
+    )
+
+    @Throws(RecaptchaError::class)
+    suspend fun getDetailedResponse(
+        token: String,
+        remoteIp: String = ""
+    ): Either<ErrorCode, Pair<V3ResponseDetail, V3Decision>>
+
     @Throws(RecaptchaError::class)
     suspend fun getVerifyScore(
         token: String,
@@ -16,16 +35,6 @@ interface RecaptchaV3Client : RecaptchaClient {
         timeoutOrDuplicateScore: Double = -2.0,
         remoteIp: String = ""
     ): Double
-
-    enum class TokenErrors {
-        INVALID_SCORE,
-        TIMEOUT_OR_DUPLICATE
-    }
-
-    data class V3Result(
-        val score: Either<Double, TokenErrors>,
-        val action: String
-    )
 
     companion object {
         fun create(

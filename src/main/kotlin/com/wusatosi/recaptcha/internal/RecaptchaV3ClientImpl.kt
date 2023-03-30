@@ -1,10 +1,14 @@
 package com.wusatosi.recaptcha.internal
 
-import com.wusatosi.recaptcha.Either
-import com.wusatosi.recaptcha.RecaptchaV3Config
-import com.wusatosi.recaptcha.UnexpectedError
+import com.google.gson.JsonObject
+import com.wusatosi.recaptcha.*
+import com.wusatosi.recaptcha.ErrorCode.InvalidToken
+import com.wusatosi.recaptcha.ErrorCode.TimeOrDuplicatedToken
 import com.wusatosi.recaptcha.v3.RecaptchaV3Client
+import com.wusatosi.recaptcha.v3.RecaptchaV3Client.V3Decision
+import com.wusatosi.recaptcha.v3.RecaptchaV3Client.V3ResponseDetail
 
+private const val ACTION_ATTRIBUTE = "action"
 private const val SCORE_ATTRIBUTE = "score"
 
 internal class RecaptchaV3ClientImpl(
@@ -20,74 +24,72 @@ internal class RecaptchaV3ClientImpl(
         timeoutOrDuplicateScore: Double,
         remoteIp: String
     ): Double {
-        if (!likelyValidRecaptchaParameter(token)) return invalidateTokenScore
-
-        val response = transact(token, remoteIp)
-        val (isSuccess, matchedHost, errorCodes) = interpretResponseBody(response)
-        return if (isSuccess) {
-            response[SCORE_ATTRIBUTE]
-                .expectNumber(SCORE_ATTRIBUTE)
-                .asDouble
-        } else {
-            if (matchedHost)
-                when (mapErrorCode(errorCodes)) {
-                    V3ErrorCode.InvalidToken -> invalidateTokenScore
-                    V3ErrorCode.TimeOrDuplicatedToken -> timeoutOrDuplicateScore
-                    else -> throw UnexpectedError("Cannot interpret error code: $errorCodes")
+        return when (val either = getDetailedResponse(token, remoteIp)) {
+            is Left -> {
+                when (either.left) {
+                    InvalidToken -> invalidateTokenScore
+                    TimeOrDuplicatedToken -> timeoutOrDuplicateScore
                 }
-            else
-                0.0
-        }
-    }
-
-    data class V3ResponseDetail(
-        val success: Boolean,
-        val score: Double,
-        val action: String,
-        val error: V3ErrorCode?,
-        val host: String
-    )
-
-    enum class V3ErrorCode {
-        InvalidToken,
-        TimeOrDuplicatedToken
-    }
-
-    object PreCheckFailed
-
-    suspend fun getDetailedResponse(token: String, remoteIp: String = ""): Either<PreCheckFailed, V3ResponseDetail> {
-        if (!likelyValidRecaptchaParameter(token))
-            return Either.left(PreCheckFailed)
-
-        val response = transact(token, remoteIp)
-        val basicInterpretation = interpretResponseBody(response)
-        val score = response[SCORE_ATTRIBUTE]
-            .expectNumber(SCORE_ATTRIBUTE)
-            .asDouble
-        val action = response["action"]
-            .expectString("action")
-        val errorCode = mapErrorCode(basicInterpretation.errorCodes)
-        return Either.right(
-            V3ResponseDetail(
-                basicInterpretation.success,
-                score,
-                action,
-                errorCode,
-                basicInterpretation.host
-            )
-        )
-    }
-
-    private fun mapErrorCode(errorCodes: List<String>) =
-        errorCodes.firstNotNullOfOrNull {
-            when (it) {
-                INVALID_TOKEN_KEY -> V3ErrorCode.InvalidToken
-                TIMEOUT_OR_DUPLICATE_KEY -> V3ErrorCode.TimeOrDuplicatedToken
-                else -> null
+            }
+            is Right -> {
+                val (detail, _) = either.right
+                detail.score
             }
         }
+    }
 
-    override suspend fun verify(token: String, remoteIp: String): Boolean =
-        getVerifyScore(token) > actionToScoreThreshold("")
+    override suspend fun getDetailedResponse(
+        token: String,
+        remoteIp: String
+    ): Either<ErrorCode, Pair<V3ResponseDetail, V3Decision>> {
+        if (!likelyValidRecaptchaParameter(token))
+            return Either.left(InvalidToken)
+
+        val response = transact(token, remoteIp)
+        return when (val either = interpretResponseBody(response)) {
+            is Left -> Either.left(either.left)
+            is Right -> {
+                val (success, hostMatch, hostname) = either.right
+
+                // TODO: Test no score
+                val score = extractScore(response)
+                // TODO: Test no action
+                val action = extractAction(response)
+
+                val threshold = generateThreshold(action)
+                val decision = V3Decision(hostMatch && threshold < score, hostMatch, threshold)
+
+                Either.right(
+                    V3ResponseDetail(
+                        success,
+                        hostname,
+                        score,
+                        action
+                    ) to decision
+                )
+            }
+        }
+    }
+
+    private fun extractAction(response: JsonObject) = response[ACTION_ATTRIBUTE]
+        .expectString(ACTION_ATTRIBUTE)
+
+    private fun extractScore(body: JsonObject) = body[SCORE_ATTRIBUTE]
+        .expectNumber(SCORE_ATTRIBUTE)
+        .asDouble
+
+    private fun generateThreshold(action: String): Double {
+        return actionToScoreThreshold(action)
+    }
+
+    override suspend fun verify(token: String, remoteIp: String): Boolean {
+        return when (val interpretation = getDetailedResponse(token, remoteIp)) {
+            is Left -> false
+            is Right -> {
+                val (_, decision) = interpretation.right
+                decision.decision
+            }
+        }
+    }
 
 }

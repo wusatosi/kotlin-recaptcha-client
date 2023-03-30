@@ -1,7 +1,9 @@
 package com.wusatosi.recaptcha.internal
 
+import com.wusatosi.recaptcha.Left
 import com.wusatosi.recaptcha.RecaptchaClient
 import com.wusatosi.recaptcha.RecaptchaV3Config
+import com.wusatosi.recaptcha.Right
 
 internal class UniversalRecaptchaClientImpl(
     secretKey: String,
@@ -15,14 +17,21 @@ internal class UniversalRecaptchaClientImpl(
             return false
 
         val response = transact(token, remoteIp)
-        val (success, hostMatch, _) = interpretResponseBody(response)
+        return when (val interpretation = interpretResponseBody(response)) {
+            is Left -> {
+                false
+            }
 
-        val score = response["score"]
-            ?.expectNumber("score")
-            ?.asDouble
-            ?: return success && hostMatch
+            is Right -> {
+                val (success, hostMatch, _) = interpretation.right
 
-        return score > defaultScoreThreshold
+                (response["score"]
+                    ?.expectNumber("score")
+                    ?.asDouble
+                    ?.let { it > defaultScoreThreshold }
+                        ?: success && hostMatch)
+            }
+        }
     }
 
 }

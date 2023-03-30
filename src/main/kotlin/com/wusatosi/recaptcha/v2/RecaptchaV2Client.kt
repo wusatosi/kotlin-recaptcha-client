@@ -1,12 +1,24 @@
 package com.wusatosi.recaptcha.v2
 
-import com.wusatosi.recaptcha.InvalidSiteKeyException
-import com.wusatosi.recaptcha.RecaptchaClient
-import com.wusatosi.recaptcha.RecaptchaV2Config
+import com.wusatosi.recaptcha.*
 import com.wusatosi.recaptcha.internal.RecaptchaV2ClientImpl
 import com.wusatosi.recaptcha.internal.likelyValidRecaptchaParameter
 
 interface RecaptchaV2Client : RecaptchaClient {
+
+    class V2ResponseDetail(
+        val success: Boolean,
+        val host: String
+    )
+
+    class V2Decision(val decision: Boolean, val hostMatch: Boolean)
+
+
+    @Throws(RecaptchaError::class)
+    suspend fun getDetailedResponse(
+        token: String,
+        remoteIp: String
+    ): Either<ErrorCode, Pair<V2ResponseDetail, V2Decision>>
 
     companion object {
         fun create(

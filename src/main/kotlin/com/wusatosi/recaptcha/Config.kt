@@ -34,29 +34,22 @@ class RecaptchaV3Config : RecaptchaConfig() {
     }
 }
 
-enum class Occupation {
-    Left,
-    Right
-}
-
-sealed class Either<L, R>(
-    val occupation: Occupation
-) {
+sealed class Either<L, R> {
     abstract val right: R
     abstract val left: L
 
     companion object {
-        fun <L, R> left(left: L): Either<L, R> = LeftOnly(left)
-        fun <L, R> right(left: R): Either<L, R> = RightOnly(left)
+        fun <L, R> left(left: L): Either<L, R> = Left(left)
+        fun <L, R> right(left: R): Either<L, R> = Right(left)
     }
 }
 
-internal class LeftOnly<L, R>(override val left: L) : Either<L, R>(Occupation.Left) {
+class Left<L, R>(override val left: L) : Either<L, R>() {
     override val right: R
         get() = throw IllegalStateException("No Right Value")
 }
 
-internal class RightOnly<L, R>(override val right: R) : Either<L, R>(Occupation.Right) {
+class Right<L, R>(override val right: R) : Either<L, R>() {
     override val left: L
         get() = throw IllegalStateException("No Left Value")
 }

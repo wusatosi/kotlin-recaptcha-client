@@ -53,7 +53,8 @@ class RecaptchaClientBaseTest {
             }
 
             fun exposeInternal(payload: JsonObject): BasicResponseBody {
-                return this.interpretResponseBody(payload)
+                // TODO: More tests
+                return this.interpretResponseBody(payload).right
             }
         }
 
@@ -191,9 +192,8 @@ class RecaptchaClientBaseTest {
                   "hostname": "wusatosi.com"
                 }
             """.trimIndent()
-        val (success, _, errorCodes) = simulateInterpretBody(jsonStr)
+        val (success, _, _) = simulateInterpretBody(jsonStr)
         assert(success)
-        assertEquals(listOf<String>(), errorCodes)
     }
 
     @Test
@@ -204,9 +204,8 @@ class RecaptchaClientBaseTest {
                   "hostname": "wusatosi.com"
                 }
             """.trimIndent()
-        val (success, _, errorCodes) = simulateInterpretBody(jsonStr)
+        val (success, _, _) = simulateInterpretBody(jsonStr)
         assert(!success)
-        assertEquals(listOf<String>(), errorCodes)
     }
 
     @Test
@@ -219,9 +218,8 @@ class RecaptchaClientBaseTest {
                   "error-codes": []
                 }
             """.trimIndent()
-            val (success, _, errorCodes) = simulateInterpretBody(jsonStr)
+            val (success, _, _) = simulateInterpretBody(jsonStr)
             assert(!success)
-            assertEquals(listOf<String>(), errorCodes)
         }
 
         run {
@@ -232,9 +230,8 @@ class RecaptchaClientBaseTest {
                   "error-codes": []
                 }
             """.trimIndent()
-            val (success, _, errorCodes) = simulateInterpretBody(jsonStr)
+            val (success, _, _) = simulateInterpretBody(jsonStr)
             assert(success)
-            assertEquals(listOf<String>(), errorCodes)
         }
     }
 
