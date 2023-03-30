@@ -6,18 +6,17 @@ import com.wusatosi.recaptcha.internal.likelyValidRecaptchaParameter
 
 interface RecaptchaV2Client : RecaptchaClient {
 
-    class V2ResponseDetail(
+    data class V2ResponseDetail(
         val success: Boolean,
         val host: String
     )
 
-    class V2Decision(val decision: Boolean, val hostMatch: Boolean)
-
+    data class V2Decision(val decision: Boolean, val hostMatch: Boolean)
 
     @Throws(RecaptchaError::class)
     suspend fun getDetailedResponse(
         token: String,
-        remoteIp: String
+        remoteIp: String = ""
     ): Either<ErrorCode, Pair<V2ResponseDetail, V2Decision>>
 
     companion object {

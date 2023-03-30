@@ -9,7 +9,7 @@ import io.ktor.client.engine.mock.*
 import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
 import org.intellij.lang.annotations.Language
-import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.IOException
@@ -204,9 +204,9 @@ class RecaptchaClientBaseTest {
                 }
             """.trimIndent()
         val either = simulateInterpretBody(jsonStr)
-        assert(either is Right)
+        assertTrue(either is Right)
         val (success, _, _) = either.right
-        assert(success)
+        assertTrue(success)
     }
 
     @Test
@@ -219,11 +219,11 @@ class RecaptchaClientBaseTest {
                     }
                 """.trimIndent()
             val either = simulateInterpretBody(jsonStr) {
-                hostList = mutableListOf("wusatosi.com")
+                allowHost("wusatosi.com")
             }
-            assert(either is Right)
+            assertTrue(either is Right)
             val (_, domainMatch, _) = either.right
-            assert(domainMatch)
+            assertTrue(domainMatch)
         }
         run {
             @Language("JSON") val jsonStr = """
@@ -233,11 +233,53 @@ class RecaptchaClientBaseTest {
                     }
                 """.trimIndent()
             val either = simulateInterpretBody(jsonStr) {
-                hostList = mutableListOf("wusatosi.com", "google.com")
+                allowHost("wusatosi.com", "google.com")
             }
-            assert(either is Right)
+            assertTrue(either is Right)
             val (_, domainMatch, _) = either.right
-            assert(domainMatch)
+            assertTrue(domainMatch)
+        }
+        run {
+            @Language("JSON") val jsonStr = """
+                    {
+                      "success": true,
+                      "hostname": "google.com"
+                    }
+                """.trimIndent()
+            val either = simulateInterpretBody(jsonStr) {
+                allowHost("wusatosi.com", "google.com")
+            }
+            assertTrue(either is Right)
+            val (_, domainMatch, _) = either.right
+            assertTrue(domainMatch)
+        }
+        run {
+            @Language("JSON") val jsonStr = """
+                    {
+                      "success": true,
+                      "hostname": "wusatosi.com"
+                    }
+                """.trimIndent()
+            val either = simulateInterpretBody(jsonStr) {
+                allowHosts(listOf("wusatosi.com", "google.com"))
+            }
+            assertTrue(either is Right)
+            val (_, domainMatch, _) = either.right
+            assertTrue(domainMatch)
+        }
+        run {
+            @Language("JSON") val jsonStr = """
+                    {
+                      "success": true,
+                      "hostname": "google.com"
+                    }
+                """.trimIndent()
+            val either = simulateInterpretBody(jsonStr) {
+                allowHosts(listOf("wusatosi.com", "google.com"))
+            }
+            assertTrue(either is Right)
+            val (_, domainMatch, _) = either.right
+            assertTrue(domainMatch)
         }
     }
 
@@ -252,9 +294,9 @@ class RecaptchaClientBaseTest {
         val either = simulateInterpretBody(jsonStr) {
             hostList = mutableListOf("google.com")
         }
-        assert(either is Right)
+        assertTrue(either is Right)
         val (_, domainMatch, _) = either.right
-        assert(!domainMatch)
+        assertFalse(domainMatch)
     }
 
     @Test
@@ -266,9 +308,9 @@ class RecaptchaClientBaseTest {
                 }
             """.trimIndent()
         val either = simulateInterpretBody(jsonStr)
-        assert(either is Right)
+        assertTrue(either is Right)
         val (success, _, _) = either.right
-        assert(!success)
+        assertFalse(success)
     }
 
     @Test
@@ -282,9 +324,9 @@ class RecaptchaClientBaseTest {
                 }
             """.trimIndent()
             val either = simulateInterpretBody(jsonStr)
-            assert(either is Right)
+            assertTrue(either is Right)
             val (success, _, _) = either.right
-            assert(success)
+            assertFalse(success)
         }
 
         run {
@@ -296,9 +338,9 @@ class RecaptchaClientBaseTest {
                 }
             """.trimIndent()
             val either = simulateInterpretBody(jsonStr)
-            assert(either is Right)
+            assertTrue(either is Right)
             val (success, _, _) = either.right
-            assert(success)
+            assertTrue(success)
         }
     }
 
@@ -364,7 +406,7 @@ class RecaptchaClientBaseTest {
                 }
             """.trimIndent()
         val either = simulateInterpretBody(invalidToken)
-        assert(either is Left)
+        assertTrue(either is Left)
         val errorCode = either.left
         assertEquals(ErrorCode.InvalidToken, errorCode)
     }
@@ -378,7 +420,7 @@ class RecaptchaClientBaseTest {
                 }
             """.trimIndent()
         val either = simulateInterpretBody(invalidToken)
-        assert(either is Left)
+        assertTrue(either is Left)
         val errorCode = either.left
         assertEquals(ErrorCode.TimeOrDuplicatedToken, errorCode)
     }

@@ -6,8 +6,16 @@ import java.lang.IllegalStateException
 
 sealed class RecaptchaConfig {
     var engine: HttpClientEngine = CIO.create()
-    var hostList: MutableList<String> = mutableListOf()
+    internal var hostList: MutableList<String> = mutableListOf()
     var useAlternativeDomain: Boolean = false
+
+    fun allowHost(vararg host: String) {
+        hostList.addAll(host)
+    }
+
+    fun allowHosts(hosts: Iterable<String>) {
+        hostList.addAll(hosts)
+    }
 }
 
 // Internal base representation of the pure RecaptchaConfig
@@ -43,16 +51,16 @@ sealed class Either<L, R> {
 
     companion object {
         fun <L, R> left(left: L): Either<L, R> = Left(left)
-        fun <L, R> right(left: R): Either<L, R> = Right(left)
+        fun <L, R> right(right: R): Either<L, R> = Right(right)
     }
 }
 
-class Left<L, R>(override val left: L) : Either<L, R>() {
+data class Left<L, R>(override val left: L) : Either<L, R>() {
     override val right: R
         get() = throw IllegalStateException("No Right Value")
 }
 
-class Right<L, R>(override val right: R) : Either<L, R>() {
+data class Right<L, R>(override val right: R) : Either<L, R>() {
     override val left: L
         get() = throw IllegalStateException("No Left Value")
 }

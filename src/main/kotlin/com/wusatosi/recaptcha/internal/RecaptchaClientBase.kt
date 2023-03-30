@@ -107,18 +107,13 @@ internal abstract class RecaptchaClientBase(
             .expectBoolean(SUCCESS_ATTRIBUTE)
 
         val errorCode = errorCodeCheck(body)
-        // TODO: Test empty error code with failed response
         if (errorCode != null)
             return Either.left(errorCode)
 
         val hostName = body[HOSTNAME_ATTRIBUTE]
             .expectString(HOSTNAME_ATTRIBUTE)
-        // TODO: Test Empty acceptable hosts (all) and restricted
         val matchedHost = acceptableHosts.isEmpty() || (hostName.isNotEmpty() && hostName in acceptableHosts)
         return Either.right(BasicResponseBody(success, matchedHost, hostName))
-
-        // TODO: test first: {"success":false,"error-codes":["invalid-input-secret"]}
-        // TODO: then {"success":false,"error-codes":["invalid-input-response"]}
     }
 
     override fun close() = client.close()
