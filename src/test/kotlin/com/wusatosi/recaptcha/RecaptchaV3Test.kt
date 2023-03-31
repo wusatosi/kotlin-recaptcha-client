@@ -340,7 +340,7 @@ class RecaptchaV3Test {
             ) to V3Decision(
                 decision = false,
                 hostMatch = false,
-                suggestedThreshold = 0.5
+                suggestedThreshold = 5.0
             )
         )
 
@@ -400,6 +400,100 @@ class RecaptchaV3Test {
         val either = simulateDetail(jsonStr)
         assertTrue(either is Left)
         assertEquals(ErrorCode.TimeOrDuplicatedToken, either.left)
+    }
+
+    @Test
+    fun malformed_missingBoth() = runBlocking {
+        @Language("JSON") val jsonStr = """
+            {
+              "success": true
+            }
+        """.trimIndent()
+        assertThrows<UnexpectedJsonStructure> { simulateVerify(jsonStr) }
+        assertThrows<UnexpectedJsonStructure> { simulateDetail(jsonStr) }
+
+        Unit
+    }
+
+    @Test
+    fun malformed_missingScore() = runBlocking {
+        @Language("JSON") val jsonStr = """
+            {
+              "success": true,
+              "action": "click"
+            }
+        """.trimIndent()
+        assertThrows<UnexpectedJsonStructure> { simulateVerify(jsonStr) }
+        assertThrows<UnexpectedJsonStructure> { simulateDetail(jsonStr) }
+
+        Unit
+    }
+
+    @Test
+    fun malformed_missingAction() = runBlocking {
+        @Language("JSON") val jsonStr = """
+            {
+              "success": true,
+              "score": 0.0
+            }
+        """.trimIndent()
+        assertThrows<UnexpectedJsonStructure> { simulateVerify(jsonStr) }
+        assertThrows<UnexpectedJsonStructure> { simulateDetail(jsonStr) }
+
+        Unit
+    }
+
+    @Test
+    fun malformed_invalidType() = runBlocking {
+        run {
+            @Language("JSON") val wrongScore = """
+                {
+                  "success": true,
+                  "score": "0.0",
+                  "action": ""
+                }
+            """.trimIndent()
+            assertThrows<UnexpectedJsonStructure> { simulateVerify(wrongScore) }
+            assertThrows<UnexpectedJsonStructure> { simulateDetail(wrongScore) }
+        }
+
+        run {
+            @Language("JSON") val wrongScore = """
+                {
+                  "success": true,
+                  "score": "0.0",
+                  "action": []
+                }
+            """.trimIndent()
+            assertThrows<UnexpectedJsonStructure> { simulateVerify(wrongScore) }
+            assertThrows<UnexpectedJsonStructure> { simulateDetail(wrongScore) }
+        }
+
+        run {
+            @Language("JSON") val wrongAction = """
+                {
+                  "success": true,
+                  "score": 0.0,
+                  "action": []
+                }
+            """.trimIndent()
+            assertThrows<UnexpectedJsonStructure> { simulateVerify(wrongAction) }
+            assertThrows<UnexpectedJsonStructure> { simulateDetail(wrongAction) }
+        }
+
+        run {
+            @Language("JSON") val wrongAction = """
+                {
+                  "success": true,
+                  "score": 0.0,
+                  "action": false
+                }
+            """.trimIndent()
+            assertThrows<UnexpectedJsonStructure> { simulateVerify(wrongAction) }
+            assertThrows<UnexpectedJsonStructure> { simulateDetail(wrongAction) }
+        }
+
+        Unit
     }
 
 }

@@ -11,7 +11,6 @@ private val pattern = Pattern.compile("^[-a-zA-Z0-9+&@#/%?=~_!:,.;]*[-a-zA-Z0-9+
 // the only thing we know is that if it's not URL compatible, it's not a valid token
 internal fun likelyValidRecaptchaParameter(target: String): Boolean = pattern.matcher(target).matches()
 
-
 internal fun JsonElement?.expectStringArray(attributeName: String): List<String> {
     this ?: throwNull(attributeName)
     if (!this.isJsonArray)
@@ -21,25 +20,25 @@ internal fun JsonElement?.expectStringArray(attributeName: String): List<String>
     return this.asJsonArray.map { it.expectString(attributeName) }
 }
 
-internal fun JsonElement?.expectPrimitive(attributeName: String): JsonPrimitive {
+private fun JsonElement?.expectPrimitive(attributeName: String, type: String): JsonPrimitive {
     this ?: throwNull(attributeName)
     if (!this.isJsonPrimitive)
         throw UnexpectedJsonStructure(
-            "$attributeName attribute is not a boolean"
+            "$attributeName attribute is not a $type"
         )
     return this.asJsonPrimitive
 }
 
 internal fun JsonElement?.expectString(attributeName: String): String {
     this ?: throwNull(attributeName)
-    if (!this.expectPrimitive(attributeName).isString)
+    if (!this.expectPrimitive(attributeName, "string").isString)
         throw UnexpectedJsonStructure(
             "$attributeName attribute is not an string"
         )
     return this.asString
 }
 
-internal fun JsonPrimitive.expectBoolean(attributeName: String): Boolean {
+private fun JsonPrimitive.expectBoolean(attributeName: String): Boolean {
     if (!this.isBoolean)
         throw UnexpectedJsonStructure(
             "$attributeName attribute is not a boolean"
@@ -48,10 +47,10 @@ internal fun JsonPrimitive.expectBoolean(attributeName: String): Boolean {
 }
 
 internal fun JsonElement?.expectBoolean(attributeName: String) = this
-    .expectPrimitive(attributeName)
+    .expectPrimitive(attributeName, "boolean")
     .expectBoolean(attributeName)
 
-internal fun JsonPrimitive.expectNumber(attributeName: String): JsonPrimitive {
+private fun JsonPrimitive.expectNumber(attributeName: String): JsonPrimitive {
     if (!this.isNumber)
         throw UnexpectedJsonStructure(
             "$attributeName attribute is not an number"
@@ -59,9 +58,10 @@ internal fun JsonPrimitive.expectNumber(attributeName: String): JsonPrimitive {
     return this
 }
 
-internal fun JsonElement.expectNumber(attributeName: String) = this
-    .expectPrimitive(attributeName)
+internal fun JsonElement?.expectNumber(attributeName: String): Double = this
+    .expectPrimitive(attributeName, "number")
     .expectNumber(attributeName)
+    .asDouble
 
 private fun throwNull(attributeName: String): Nothing {
     throw UnexpectedJsonStructure(

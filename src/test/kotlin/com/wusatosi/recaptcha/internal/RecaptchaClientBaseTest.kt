@@ -357,10 +357,18 @@ class RecaptchaClientBaseTest {
             """.trimIndent()
         assertThrows<UnexpectedJsonStructure> { simulateInterpretBody(typeMismatch) }
 
+        @Language("JSON") val errorCodeMisSubtype = """
+                {
+                  "success": false,
+                  "error-codes": [true]
+                }
+            """.trimIndent()
+        assertThrows<UnexpectedJsonStructure> { simulateInterpretBody(errorCodeMisSubtype) }
+
         @Language("JSON") val errorCodeMistype = """
                 {
-                  "success": "false",
-                  "error-codes": [true]
+                  "success": false,
+                  "error-codes": true
                 }
             """.trimIndent()
         assertThrows<UnexpectedJsonStructure> { simulateInterpretBody(errorCodeMistype) }
