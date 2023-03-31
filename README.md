@@ -1,6 +1,8 @@
 # kotlin-recaptcha-client
+[![codecov](https://codecov.io/github/wusatosi/kotlin-recaptcha-client/branch/master/graph/badge.svg?token=MlC5HZqSU2)](https://codecov.io/github/wusatosi/kotlin-recaptcha-client)
 
-kotlin-recaptcha-client is an kotlin library for server side reCAPTCHA verification, supports both recaptcha v2 and recaptcha v3
+kotlin-recaptcha-client is an kotlin library for server side reCAPTCHA verification, supports both recaptcha v2 and
+recaptcha v3
 
 This client aims to be as simple as possible
 
