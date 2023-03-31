@@ -8,11 +8,11 @@ sealed class RecaptchaConfig {
     internal var hostList: MutableList<String> = mutableListOf()
     var useAlternativeDomain: Boolean = false
 
-    fun allowHost(vararg host: String) {
+    fun allowDomain(vararg host: String) {
         hostList.addAll(host)
     }
 
-    fun allowHosts(hosts: Iterable<String>) {
+    fun allowDomains(hosts: Iterable<String>) {
         hostList.addAll(hosts)
     }
 }

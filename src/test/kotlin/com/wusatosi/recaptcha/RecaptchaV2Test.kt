@@ -72,7 +72,7 @@ class RecaptchaV2Test {
             val expectedDetail = Either.right<ErrorCode, _>(
                 V2ResponseDetail(true, "wusatosi.com") to V2Decision(
                     decision = true,
-                    hostMatch = true
+                    domainMatch = true
                 )
             )
             assertTrue(simulateVerify(jsonStr))
@@ -91,7 +91,45 @@ class RecaptchaV2Test {
             val expectedDetail = Either.right<ErrorCode, _>(
                 V2ResponseDetail(true, "github.com") to V2Decision(
                     decision = true,
-                    hostMatch = true
+                    domainMatch = true
+                )
+            )
+            assertTrue(simulateVerify(jsonStr))
+            assertTrue(simulateVerify(jsonStr) { useAlternativeDomain = true })
+            assertEquals(expectedDetail, simulateDetails(jsonStr))
+            assertEquals(expectedDetail, simulateDetails(jsonStr) { useAlternativeDomain = true })
+        }
+        run {
+            @Language("JSON") val jsonStr = """
+                    {
+                      "success": true,
+                      "challenge_ts": "2023-03-28T22:10:10Z",
+                      "apk_package_name": "com.wusatosi.test"
+                    }
+                """.trimIndent()
+            val expectedDetail = Either.right<ErrorCode, _>(
+                V2ResponseDetail(true, "com.wusatosi.test") to V2Decision(
+                    decision = true,
+                    domainMatch = true
+                )
+            )
+            assertTrue(simulateVerify(jsonStr))
+            assertTrue(simulateVerify(jsonStr) { useAlternativeDomain = true })
+            assertEquals(expectedDetail, simulateDetails(jsonStr))
+            assertEquals(expectedDetail, simulateDetails(jsonStr) { useAlternativeDomain = true })
+        }
+        run {
+            @Language("JSON") val jsonStr = """
+                    {
+                      "success": true,
+                      "challenge_ts": "2023-03-28T22:10:10Z",
+                      "apk_package_name": "com.github"
+                    }
+                """.trimIndent()
+            val expectedDetail = Either.right<ErrorCode, _>(
+                V2ResponseDetail(true, "com.github") to V2Decision(
+                    decision = true,
+                    domainMatch = true
                 )
             )
             assertTrue(simulateVerify(jsonStr))
@@ -114,7 +152,7 @@ class RecaptchaV2Test {
             Either.right<ErrorCode, _>(
                 V2ResponseDetail(true, "wusatosi.com") to V2Decision(
                     decision = true,
-                    hostMatch = true
+                    domainMatch = true
                 )
             )
 
@@ -124,13 +162,13 @@ class RecaptchaV2Test {
         }
 
         testDomainMatch {
-            allowHost("wusatosi.com")
+            allowDomain("wusatosi.com")
         }
         testDomainMatch {
-            allowHost("wusatosi.com", "google.com")
+            allowDomain("wusatosi.com", "google.com")
         }
         testDomainMatch {
-            allowHosts(listOf("wusatosi.com", "google.com"))
+            allowDomains(listOf("wusatosi.com", "google.com"))
         }
     }
 
@@ -148,7 +186,7 @@ class RecaptchaV2Test {
                 Either.right<ErrorCode, _>(
                     V2ResponseDetail(false, "wusatosi.com") to V2Decision(
                         decision = false,
-                        hostMatch = true
+                        domainMatch = true
                     )
                 )
 
@@ -189,7 +227,7 @@ class RecaptchaV2Test {
                 Either.right<ErrorCode, _>(
                     V2ResponseDetail(true, "wusatosi.com") to V2Decision(
                         decision = false,
-                        hostMatch = false
+                        domainMatch = false
                     )
                 )
 
@@ -199,15 +237,15 @@ class RecaptchaV2Test {
             }
 
             testDomainMismatch {
-                allowHost("google.com")
+                allowDomain("google.com")
             }
 
             testDomainMismatch {
-                allowHost("google.com", "github.com")
+                allowDomain("google.com", "github.com")
             }
 
             testDomainMismatch {
-                allowHosts(listOf("google.com", "github.com"))
+                allowDomains(listOf("google.com", "github.com"))
             }
         }
 

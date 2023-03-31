@@ -210,7 +210,7 @@ class RecaptchaClientBaseTest {
     }
 
     @Test
-    fun interpretSuccessBody_matchingDomain() = runBlocking {
+    fun interpretSuccessBody_matchingHost() = runBlocking {
         run {
             @Language("JSON") val jsonStr = """
                     {
@@ -219,7 +219,7 @@ class RecaptchaClientBaseTest {
                     }
                 """.trimIndent()
             val either = simulateInterpretBody(jsonStr) {
-                allowHost("wusatosi.com")
+                allowDomain("wusatosi.com")
             }
             assertTrue(either is Right)
             val (_, domainMatch, _) = either.right
@@ -233,7 +233,7 @@ class RecaptchaClientBaseTest {
                     }
                 """.trimIndent()
             val either = simulateInterpretBody(jsonStr) {
-                allowHost("wusatosi.com", "google.com")
+                allowDomain("wusatosi.com", "google.com")
             }
             assertTrue(either is Right)
             val (_, domainMatch, _) = either.right
@@ -247,7 +247,7 @@ class RecaptchaClientBaseTest {
                     }
                 """.trimIndent()
             val either = simulateInterpretBody(jsonStr) {
-                allowHost("wusatosi.com", "google.com")
+                allowDomain("wusatosi.com", "google.com")
             }
             assertTrue(either is Right)
             val (_, domainMatch, _) = either.right
@@ -261,7 +261,7 @@ class RecaptchaClientBaseTest {
                     }
                 """.trimIndent()
             val either = simulateInterpretBody(jsonStr) {
-                allowHosts(listOf("wusatosi.com", "google.com"))
+                allowDomains(listOf("wusatosi.com", "google.com"))
             }
             assertTrue(either is Right)
             val (_, domainMatch, _) = either.right
@@ -275,7 +275,81 @@ class RecaptchaClientBaseTest {
                     }
                 """.trimIndent()
             val either = simulateInterpretBody(jsonStr) {
-                allowHosts(listOf("wusatosi.com", "google.com"))
+                allowDomains(listOf("wusatosi.com", "google.com"))
+            }
+            assertTrue(either is Right)
+            val (_, domainMatch, _) = either.right
+            assertTrue(domainMatch)
+        }
+    }
+
+    @Test
+    fun interpretSuccessBody_apkName() = runBlocking {
+        run {
+            @Language("JSON") val jsonStr = """
+                    {
+                      "success": true,
+                      "apk_package_name": "com.wusatosi.test"
+                    }
+                """.trimIndent()
+            val either = simulateInterpretBody(jsonStr) {
+                allowDomain("com.wusatosi.test")
+            }
+            assertTrue(either is Right)
+            val (_, domainMatch, _) = either.right
+            assertTrue(domainMatch)
+        }
+        run {
+            @Language("JSON") val jsonStr = """
+                    {
+                      "success": true,
+                      "apk_package_name": "com.wusatosi.test"
+                    }
+                """.trimIndent()
+            val either = simulateInterpretBody(jsonStr) {
+                allowDomain("com.wusatosi.test", "com.google.map")
+            }
+            assertTrue(either is Right)
+            val (_, domainMatch, _) = either.right
+            assertTrue(domainMatch)
+        }
+        run {
+            @Language("JSON") val jsonStr = """
+                    {
+                      "success": true,
+                      "apk_package_name": "com.google.map"
+                    }
+                """.trimIndent()
+            val either = simulateInterpretBody(jsonStr) {
+                allowDomain("com.wusatosi.test", "com.google.map")
+            }
+            assertTrue(either is Right)
+            val (_, domainMatch, _) = either.right
+            assertTrue(domainMatch)
+        }
+        run {
+            @Language("JSON") val jsonStr = """
+                    {
+                      "success": true,
+                      "apk_package_name": "com.wusatosi.test"
+                    }
+                """.trimIndent()
+            val either = simulateInterpretBody(jsonStr) {
+                allowDomains(listOf("com.wusatosi.test", "com.google.map"))
+            }
+            assertTrue(either is Right)
+            val (_, domainMatch, _) = either.right
+            assertTrue(domainMatch)
+        }
+        run {
+            @Language("JSON") val jsonStr = """
+                    {
+                      "success": true,
+                      "apk_package_name": "com.google.map"
+                    }
+                """.trimIndent()
+            val either = simulateInterpretBody(jsonStr) {
+                allowDomains(listOf("com.wusatosi.test", "com.google.map"))
             }
             assertTrue(either is Right)
             val (_, domainMatch, _) = either.right
@@ -292,7 +366,23 @@ class RecaptchaClientBaseTest {
                 }
             """.trimIndent()
         val either = simulateInterpretBody(jsonStr) {
-            hostList = mutableListOf("google.com")
+            allowDomain("google.com")
+        }
+        assertTrue(either is Right)
+        val (_, domainMatch, _) = either.right
+        assertFalse(domainMatch)
+    }
+
+    @Test
+    fun interpretSuccessBody_mismatchApk() = runBlocking {
+        @Language("JSON") val jsonStr = """
+                {
+                  "success": true,
+                  "apk_package_name": "com.wusatosi.test"
+                }
+            """.trimIndent()
+        val either = simulateInterpretBody(jsonStr) {
+            allowDomain("com.google.map")
         }
         assertTrue(either is Right)
         val (_, domainMatch, _) = either.right

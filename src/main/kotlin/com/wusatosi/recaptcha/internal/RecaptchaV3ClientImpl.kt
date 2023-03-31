@@ -17,11 +17,6 @@ internal class RecaptchaV3ClientImpl(
 
     private val actionToScoreThreshold = config.actionToScoreThreshold
 
-    private val failDecision = V3Decision(
-        decision = false, hostMatch = false, suggestedThreshold = 5.0
-    )
-
-
     override suspend fun getDetailedResponse(
         token: String,
         remoteIp: String
@@ -35,20 +30,15 @@ internal class RecaptchaV3ClientImpl(
             is Right -> {
                 val (success, hostMatch, hostname) = either.right
 
-                if (!success)
-                    return Either.right(V3ResponseDetail(false, hostname, 0.0, "") to failDecision)
-
-                // TODO: Test no score
                 val score = extractScore(response)
-                // TODO: Test no action
                 val action = extractAction(response)
 
                 val threshold = generateThreshold(action)
-                val decision = V3Decision(hostMatch && (score > threshold), hostMatch, threshold)
+                val decision = V3Decision(success && hostMatch && (score > threshold), hostMatch, threshold)
 
                 Either.right(
                     V3ResponseDetail(
-                        success = true,
+                        success,
                         hostname,
                         score,
                         action

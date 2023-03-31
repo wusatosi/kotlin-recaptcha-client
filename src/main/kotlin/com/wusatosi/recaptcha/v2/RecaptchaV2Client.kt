@@ -8,10 +8,10 @@ interface RecaptchaV2Client : RecaptchaClient {
 
     data class V2ResponseDetail(
         val success: Boolean,
-        val host: String
+        val domain: String
     )
 
-    data class V2Decision(val decision: Boolean, val hostMatch: Boolean)
+    data class V2Decision(val decision: Boolean, val domainMatch: Boolean)
 
     @Throws(RecaptchaError::class)
     suspend fun getDetailedResponse(

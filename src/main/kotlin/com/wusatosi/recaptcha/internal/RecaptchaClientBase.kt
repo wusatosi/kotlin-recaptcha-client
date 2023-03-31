@@ -28,6 +28,7 @@ internal const val TIMEOUT_OR_DUPLICATE_KEY = "timeout-or-duplicate"
 private const val SUCCESS_ATTRIBUTE = "success"
 private const val ERROR_CODES_ATTRIBUTE = "error-codes"
 private const val HOSTNAME_ATTRIBUTE = "hostname"
+private const val APK_PACKAGE_NAME_ATTRIBUTE = "apk_package_name"
 
 internal abstract class RecaptchaClientBase(
     private val secretKey: String,
@@ -78,7 +79,7 @@ internal abstract class RecaptchaClientBase(
 
     internal data class BasicResponseBody(
         val success: Boolean,
-        val matchedHost: Boolean,
+        val matchedDomain: Boolean,
         val host: String
     )
 
@@ -110,11 +111,14 @@ internal abstract class RecaptchaClientBase(
         if (errorCode != null)
             return Either.left(errorCode)
 
-        val hostName = body[HOSTNAME_ATTRIBUTE]
-            ?.expectString(HOSTNAME_ATTRIBUTE)
-            ?: ""
-        val matchedHost = hostName.isNotEmpty() && (acceptableHosts.isEmpty() || (hostName in acceptableHosts))
-        return Either.right(BasicResponseBody(success, matchedHost, hostName))
+        val domain =
+            body[APK_PACKAGE_NAME_ATTRIBUTE]
+                ?.expectString(APK_PACKAGE_NAME_ATTRIBUTE)
+                ?: body[HOSTNAME_ATTRIBUTE]
+                    .expectString(HOSTNAME_ATTRIBUTE)
+
+        val matchedHost = (acceptableHosts.isEmpty() || (domain in acceptableHosts))
+        return Either.right(BasicResponseBody(success, matchedHost, domain))
     }
 
     override fun close() = client.close()
