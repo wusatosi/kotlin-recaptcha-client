@@ -272,6 +272,4 @@ class RecaptchaV2Test {
         assertEquals(ErrorCode.TimeOrDuplicatedToken, either.left)
     }
 
-    // TODO: Test ip rejected.
-
 }
