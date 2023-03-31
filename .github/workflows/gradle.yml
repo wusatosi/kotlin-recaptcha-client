@@ -27,7 +27,7 @@ jobs:
           gradle-version: current
           arguments: test
 
-      - name: Test
+      - name: Generate Coverage Report
         uses: gradle/gradle-build-action@v2
         with:
           gradle-version: current
