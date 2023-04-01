@@ -29,6 +29,7 @@ runBlocking {
 
     // ...
 }
+v2Client.close()
 ```
 
 For v3 client:
@@ -43,6 +44,7 @@ runBlocking {
 
     // ...
 }
+v3Client.close()
 ```
 
 ## Configuring the client

@@ -162,6 +162,10 @@ class RecaptchaV3Test {
 
         testAction { limitedActions("click") }
         testAction { limitedActions("click", "login") }
+        testAction {
+            limitedActions("click")
+            limitedActions("login")
+        }
     }
 
     @Test
